@@ -12,9 +12,19 @@ class DailySaleController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $dailySales = DailySale::orderBy('date', 'desc')->paginate(10);
+        $perPage = $request->input('per_page', 10);
+        $dailySales = DailySale::orderBy('date', 'desc')->paginate($perPage);
+        
+        // Add calculated fields to each sale
+        $dailySales->getCollection()->transform(function ($sale) {
+            $sale->total_product_sale = $sale->fuel_sale + $sale->store_sale + $sale->gst;
+            $sale->total_counter_sale = $sale->card + $sale->cash + $sale->coupon + $sale->delivery;
+            $sale->grand_total = $sale->total_product_sale + $sale->total_counter_sale;
+            return $sale;
+        });
+        
         return response()->json($dailySales);
     }
 
@@ -32,10 +42,16 @@ class DailySaleController extends Controller
             'cash' => 'required|numeric|min:0',
             'coupon' => 'required|numeric|min:0',
             'delivery' => 'required|numeric|min:0',
+            'reported_total' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
         $dailySale = DailySale::create($request->all());
+        
+        // Add calculated fields
+        $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
+        $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
+        $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
 
         return response()->json([
             'message' => 'Daily sale created successfully',
@@ -48,6 +64,11 @@ class DailySaleController extends Controller
      */
     public function show(DailySale $dailySale)
     {
+        // Add calculated fields
+        $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
+        $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
+        $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
+        
         return response()->json($dailySale);
     }
 
@@ -65,10 +86,16 @@ class DailySaleController extends Controller
             'cash' => 'required|numeric|min:0',
             'coupon' => 'required|numeric|min:0',
             'delivery' => 'required|numeric|min:0',
+            'reported_total' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
         $dailySale->update($request->all());
+        
+        // Add calculated fields
+        $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
+        $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
+        $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
 
         return response()->json([
             'message' => 'Daily sale updated successfully',
