@@ -20,6 +20,7 @@ class DailySale extends Model
         'delivery',
         'reported_total',
         'notes',
+        'user_id',
     ];
 
     protected $casts = [
@@ -50,5 +51,13 @@ class DailySale extends Model
     public function getGrandTotalAttribute()
     {
         return $this->total_product_sale + $this->total_counter_sale;
+    }
+
+    /**
+     * Relationship with user
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

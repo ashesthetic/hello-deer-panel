@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -45,5 +46,85 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Check if user is admin
+     */
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * Check if user is editor
+     */
+    public function isEditor(): bool
+    {
+        return $this->role === 'editor';
+    }
+
+    /**
+     * Check if user is viewer
+     */
+    public function isViewer(): bool
+    {
+        return $this->role === 'viewer';
+    }
+
+    /**
+     * Check if user can create entries
+     */
+    public function canCreate(): bool
+    {
+        return $this->isAdmin() || $this->isEditor();
+    }
+
+    /**
+     * Check if user can update entries
+     */
+    public function canUpdate(): bool
+    {
+        return $this->isAdmin() || $this->isEditor();
+    }
+
+    /**
+     * Check if user can delete entries
+     */
+    public function canDelete(): bool
+    {
+        return $this->isAdmin();
+    }
+
+    /**
+     * Check if user can manage users
+     */
+    public function canManageUsers(): bool
+    {
+        return $this->isAdmin();
+    }
+
+    /**
+     * Check if user can update a specific daily sale
+     */
+    public function canUpdateDailySale(DailySale $dailySale): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+        
+        if ($this->isEditor()) {
+            return $dailySale->user_id === $this->id;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Relationship with daily sales
+     */
+    public function dailySales()
+    {
+        return $this->hasMany(DailySale::class);
     }
 }
