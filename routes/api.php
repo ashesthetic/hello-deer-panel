@@ -25,4 +25,5 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanc
 Route::get('/user/profile', [AuthController::class, 'profile'])->middleware('auth:sanctum');
 
 // Daily Sales routes
-Route::apiResource('daily-sales', \App\Http\Controllers\Api\DailySaleController::class)->middleware('auth:sanctum'); 
+Route::apiResource('daily-sales', \App\Http\Controllers\Api\DailySaleController::class)->middleware('auth:sanctum');
+Route::get('daily-sales/month/{year?}/{month?}', [\App\Http\Controllers\Api\DailySaleController::class, 'getByMonth'])->middleware('auth:sanctum'); 
