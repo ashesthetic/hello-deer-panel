@@ -121,10 +121,34 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user can update a specific daily fuel
+     */
+    public function canUpdateDailyFuel(DailyFuel $dailyFuel): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+        
+        if ($this->isEditor()) {
+            return $dailyFuel->user_id === $this->id;
+        }
+        
+        return false;
+    }
+
+    /**
      * Relationship with daily sales
      */
     public function dailySales()
     {
         return $this->hasMany(DailySale::class);
+    }
+
+    /**
+     * Relationship with daily fuels
+     */
+    public function dailyFuels()
+    {
+        return $this->hasMany(DailyFuel::class);
     }
 }
