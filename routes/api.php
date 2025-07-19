@@ -36,4 +36,14 @@ Route::apiResource('vendors', \App\Http\Controllers\Api\VendorController::class)
 
 // User management routes (Admin only)
 Route::apiResource('users', \App\Http\Controllers\Api\UserController::class)->middleware('auth:sanctum');
-Route::get('/user/profile', [\App\Http\Controllers\Api\UserController::class, 'profile'])->middleware('auth:sanctum'); 
+Route::get('/user/profile', [\App\Http\Controllers\Api\UserController::class, 'profile'])->middleware('auth:sanctum');
+
+// Employee routes
+Route::get('/employees/stats', [\App\Http\Controllers\Api\EmployeeController::class, 'stats'])->middleware('auth:sanctum');
+Route::apiResource('employees', \App\Http\Controllers\Api\EmployeeController::class)->middleware('auth:sanctum');
+
+// Work Hours routes
+Route::apiResource('work-hours', \App\Http\Controllers\Api\WorkHourController::class)->middleware('auth:sanctum');
+Route::get('/work-hours/recent', [\App\Http\Controllers\Api\WorkHourController::class, 'recent'])->middleware('auth:sanctum');
+Route::get('/work-hours/summary', [\App\Http\Controllers\Api\WorkHourController::class, 'summary'])->middleware('auth:sanctum');
+Route::get('/employees/{employee}/work-hours', [\App\Http\Controllers\Api\WorkHourController::class, 'employeeHours'])->middleware('auth:sanctum'); 
