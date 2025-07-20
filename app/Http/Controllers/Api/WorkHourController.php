@@ -53,9 +53,9 @@ class WorkHourController extends Controller
         $data['user_id'] = auth()->id();
 
         // Calculate total hours
-        $startTime = Carbon::parse($data['start_time']);
-        $endTime = Carbon::parse($data['end_time']);
-        $data['total_hours'] = $endTime->diffInMinutes($startTime) / 60;
+        $startTime = Carbon::parse($data['date'] . ' ' . $data['start_time']);
+        $endTime = Carbon::parse($data['date'] . ' ' . $data['end_time']);
+        $data['total_hours'] = $startTime->diffInMinutes($endTime) / 60;
 
         $workHour = WorkHour::create($data);
 
@@ -102,9 +102,9 @@ class WorkHourController extends Controller
         $data = $validator->validated();
 
         // Calculate total hours
-        $startTime = Carbon::parse($data['start_time']);
-        $endTime = Carbon::parse($data['end_time']);
-        $data['total_hours'] = $endTime->diffInMinutes($startTime) / 60;
+        $startTime = Carbon::parse($data['date'] . ' ' . $data['start_time']);
+        $endTime = Carbon::parse($data['date'] . ' ' . $data['end_time']);
+        $data['total_hours'] = $startTime->diffInMinutes($endTime) / 60;
 
         $workHour->update($data);
 

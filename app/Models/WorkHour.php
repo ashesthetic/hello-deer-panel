@@ -22,8 +22,8 @@ class WorkHour extends Model
 
     protected $casts = [
         'date' => 'date',
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
+        'start_time' => 'string',
+        'end_time' => 'string',
         'total_hours' => 'decimal:2',
     ];
 
