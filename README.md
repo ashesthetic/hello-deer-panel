@@ -1,4 +1,4 @@
-# Hello Deer Panel
+# Hello Deer!
 
 A scalable login/logout application built with Laravel (backend) and React + Redux + TypeScript (frontend).
 
