@@ -325,7 +325,7 @@ class EmployeeController extends Controller
                         'period_start' => $currentPeriodStart->format('Y-m-d'),
                         'period_end' => $currentPeriodEnd->format('Y-m-d'),
                         'pay_day' => $currentPayDay->format('Y-m-d'),
-                        'days_until_pay' => floor($today->diffInDays($currentPayDay, false))
+                        'days_until_pay' => max(0, ceil($today->diffInDays($currentPayDay, true)))
                     ]
                 ],
                 'next_period' => [
@@ -334,7 +334,7 @@ class EmployeeController extends Controller
                         'period_start' => $nextPeriodStart->format('Y-m-d'),
                         'period_end' => $nextPeriodEnd->format('Y-m-d'),
                         'pay_day' => $nextPayDay->format('Y-m-d'),
-                        'days_until_pay' => floor($today->diffInDays($nextPayDay, false))
+                        'days_until_pay' => max(0, ceil($today->diffInDays($nextPayDay, true)))
                     ]
                 ]
             ]
