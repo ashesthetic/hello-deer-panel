@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DailyFuel;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Utils\TimezoneUtil;
 
 class DailyFuelController extends Controller
 {
@@ -192,8 +193,8 @@ class DailyFuelController extends Controller
     public function getByMonth(Request $request, $year = null, $month = null)
     {
         $user = $request->user();
-        $year = $year ?: date('Y');
-        $month = $month ?: date('n');
+        $year = $year ?: TimezoneUtil::now()->format('Y');
+        $month = $month ?: TimezoneUtil::now()->format('n');
         
         // Build query based on user role
         $query = DailyFuel::with('user');

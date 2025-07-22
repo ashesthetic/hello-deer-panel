@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => 'America/Edmonton',
+    'timezone' => env('APP_TIMEZONE', 'America/Edmonton'),
 
     /*
     |--------------------------------------------------------------------------

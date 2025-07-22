@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\DailySale;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
+use App\Utils\TimezoneUtil;
 
 class ImportDailySalesFromCsv extends Command
 {
@@ -145,7 +146,7 @@ class ImportDailySalesFromCsv extends Command
 
         foreach ($formats as $format) {
             try {
-                $date = Carbon::createFromFormat($format, $dateString);
+                $date = TimezoneUtil::createFromFormat($format, $dateString);
                 return $date->format('Y-m-d');
             } catch (\Exception $e) {
                 continue;
