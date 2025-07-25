@@ -43,6 +43,8 @@ Route::get('/employees/stats', [\App\Http\Controllers\Api\EmployeeController::cl
 Route::get('/employees/earnings', [\App\Http\Controllers\Api\EmployeeController::class, 'earnings'])->middleware('auth:sanctum');
 Route::get('/employees/pay-days', [\App\Http\Controllers\Api\EmployeeController::class, 'getPayDays'])->middleware('auth:sanctum');
 Route::post('/employees/work-hour-report', [\App\Http\Controllers\Api\EmployeeController::class, 'generateWorkHourReport'])->middleware('auth:sanctum');
+Route::post('/employees/pay-stubs', [\App\Http\Controllers\Api\EmployeeController::class, 'generatePayStubs'])->middleware('auth:sanctum');
+Route::post('/employees/pay-stubs-editable', [\App\Http\Controllers\Api\EmployeeController::class, 'generatePayStubsEditable'])->middleware('auth:sanctum');
 Route::apiResource('employees', \App\Http\Controllers\Api\EmployeeController::class)->middleware('auth:sanctum');
 
 // Work Hours routes
