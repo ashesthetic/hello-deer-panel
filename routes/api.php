@@ -51,4 +51,9 @@ Route::apiResource('employees', \App\Http\Controllers\Api\EmployeeController::cl
 Route::apiResource('work-hours', \App\Http\Controllers\Api\WorkHourController::class)->middleware('auth:sanctum');
 Route::get('/work-hours/recent', [\App\Http\Controllers\Api\WorkHourController::class, 'recent'])->middleware('auth:sanctum');
 Route::get('/work-hours/summary', [\App\Http\Controllers\Api\WorkHourController::class, 'summary'])->middleware('auth:sanctum');
-Route::get('/employees/{employee}/work-hours', [\App\Http\Controllers\Api\WorkHourController::class, 'employeeHours'])->middleware('auth:sanctum'); 
+Route::get('/employees/{employee}/work-hours', [\App\Http\Controllers\Api\WorkHourController::class, 'employeeHours'])->middleware('auth:sanctum');
+
+// Vendor Invoice routes
+Route::get('/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware('auth:sanctum');
+Route::get('/vendor-invoices/{vendorInvoice}/download', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'downloadFile'])->middleware('auth:sanctum');
+Route::apiResource('vendor-invoices', \App\Http\Controllers\Api\VendorInvoiceController::class)->middleware('auth:sanctum'); 
