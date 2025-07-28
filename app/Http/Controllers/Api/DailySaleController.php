@@ -39,15 +39,19 @@ class DailySaleController extends Controller
         }
         
         // Handle sorting for calculated fields
-        if ($sortBy === 'total_product_sale') {
-            $query->orderByRaw('(fuel_sale + store_sale + gst) ' . $sortDirection);
-        } elseif ($sortBy === 'total_counter_sale') {
+        if ($sortBy === 'daily_total') {
+            $query->orderByRaw('(fuel_sale + store_sale + store_discount + gst + penny_rounding) ' . $sortDirection);
+        } elseif ($sortBy === 'breakdown_total') {
             $query->orderByRaw('(card + cash + coupon + delivery) ' . $sortDirection);
         } elseif ($sortBy === 'reported_total') {
             $query->orderBy('reported_total', $sortDirection);
         } else {
             // Default sorting and other direct fields
-            $allowedSortFields = ['date', 'fuel_sale', 'store_sale', 'gst', 'card', 'cash', 'coupon', 'delivery'];
+            $allowedSortFields = [
+                'date', 'fuel_sale', 'store_sale', 'gst', 'store_discount', 'penny_rounding',
+                'card', 'cash', 'coupon', 'delivery', 'reported_total', 'number_of_safedrops',
+                'safedrops_amount', 'cash_on_hand'
+            ];
             if (!in_array($sortBy, $allowedSortFields)) {
                 $sortBy = 'date';
             }
@@ -58,9 +62,19 @@ class DailySaleController extends Controller
         
         // Add calculated fields to each sale
         $dailySales->getCollection()->transform(function ($sale) {
+            $sale->daily_total = $sale->fuel_sale + $sale->store_sale + $sale->store_discount + $sale->gst + $sale->penny_rounding;
+            $sale->breakdown_total = $sale->card + $sale->cash + $sale->coupon + $sale->delivery;
+            $sale->total_pos_transactions = $sale->pos_visa + $sale->pos_mastercard + $sale->pos_amex + $sale->pos_commercial + 
+                                           $sale->pos_up_credit + $sale->pos_discover + $sale->pos_interac_debit;
+            $sale->total_afd_transactions = $sale->afd_visa + $sale->afd_mastercard + $sale->afd_amex + $sale->afd_commercial + 
+                                           $sale->afd_up_credit + $sale->afd_discover + $sale->afd_interac_debit;
+            $sale->total_loyalty_discounts = $sale->journey_discount + $sale->aeroplan_discount;
+            
+            // Legacy fields for backward compatibility
             $sale->total_product_sale = $sale->fuel_sale + $sale->store_sale + $sale->gst;
             $sale->total_counter_sale = $sale->card + $sale->cash + $sale->coupon + $sale->delivery;
             $sale->grand_total = $sale->total_product_sale + $sale->total_counter_sale;
+            
             // Ensure reported_total is not null
             $sale->reported_total = $sale->reported_total ?? 0;
             return $sale;
@@ -85,11 +99,33 @@ class DailySaleController extends Controller
             'fuel_sale' => 'required|numeric|min:0',
             'store_sale' => 'required|numeric|min:0',
             'gst' => 'required|numeric|min:0',
+            'store_discount' => 'required|numeric|min:0',
+            'penny_rounding' => 'required|numeric|min:0',
             'card' => 'required|numeric|min:0',
             'cash' => 'required|numeric|min:0',
             'coupon' => 'required|numeric|min:0',
             'delivery' => 'required|numeric|min:0',
+            'lottery_payout' => 'required|numeric|min:0',
             'reported_total' => 'required|numeric|min:0',
+            'number_of_safedrops' => 'required|integer|min:0',
+            'safedrops_amount' => 'required|numeric|min:0',
+            'cash_on_hand' => 'required|numeric|min:0',
+            'pos_visa' => 'required|numeric|min:0',
+            'pos_mastercard' => 'required|numeric|min:0',
+            'pos_amex' => 'required|numeric|min:0',
+            'pos_commercial' => 'required|numeric|min:0',
+            'pos_up_credit' => 'required|numeric|min:0',
+            'pos_discover' => 'required|numeric|min:0',
+            'pos_interac_debit' => 'required|numeric|min:0',
+            'afd_visa' => 'required|numeric|min:0',
+            'afd_mastercard' => 'required|numeric|min:0',
+            'afd_amex' => 'required|numeric|min:0',
+            'afd_commercial' => 'required|numeric|min:0',
+            'afd_up_credit' => 'required|numeric|min:0',
+            'afd_discover' => 'required|numeric|min:0',
+            'afd_interac_debit' => 'required|numeric|min:0',
+            'journey_discount' => 'required|numeric|min:0',
+            'aeroplan_discount' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
@@ -99,9 +135,19 @@ class DailySaleController extends Controller
         $dailySale = DailySale::create($data);
         
         // Add calculated fields
+        $dailySale->daily_total = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->store_discount + $dailySale->gst + $dailySale->penny_rounding;
+        $dailySale->breakdown_total = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery + $dailySale->lottery_payout;
+        $dailySale->total_pos_transactions = $dailySale->pos_visa + $dailySale->pos_mastercard + $dailySale->pos_amex + $dailySale->pos_commercial + 
+                                            $dailySale->pos_up_credit + $dailySale->pos_discover + $dailySale->pos_interac_debit;
+        $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial + 
+                                            $dailySale->afd_up_credit + $dailySale->afd_discover + $dailySale->afd_interac_debit;
+        $dailySale->total_loyalty_discounts = $dailySale->journey_discount + $dailySale->aeroplan_discount;
+        
+        // Legacy fields for backward compatibility
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
         $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
         $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
+        
         // Ensure reported_total is not null
         $dailySale->reported_total = $dailySale->reported_total ?? 0;
 
@@ -124,9 +170,19 @@ class DailySaleController extends Controller
         }
         
         // Add calculated fields
+        $dailySale->daily_total = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->store_discount + $dailySale->gst + $dailySale->penny_rounding;
+        $dailySale->breakdown_total = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery + $dailySale->lottery_payout;
+        $dailySale->total_pos_transactions = $dailySale->pos_visa + $dailySale->pos_mastercard + $dailySale->pos_amex + $dailySale->pos_commercial + 
+                                            $dailySale->pos_up_credit + $dailySale->pos_discover + $dailySale->pos_interac_debit;
+        $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial + 
+                                            $dailySale->afd_up_credit + $dailySale->afd_discover + $dailySale->afd_interac_debit;
+        $dailySale->total_loyalty_discounts = $dailySale->journey_discount + $dailySale->aeroplan_discount;
+        
+        // Legacy fields for backward compatibility
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
         $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
         $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
+        
         // Ensure reported_total is not null
         $dailySale->reported_total = $dailySale->reported_total ?? 0;
         
@@ -149,20 +205,52 @@ class DailySaleController extends Controller
             'fuel_sale' => 'required|numeric|min:0',
             'store_sale' => 'required|numeric|min:0',
             'gst' => 'required|numeric|min:0',
+            'store_discount' => 'required|numeric|min:0',
+            'penny_rounding' => 'required|numeric|min:0',
             'card' => 'required|numeric|min:0',
             'cash' => 'required|numeric|min:0',
             'coupon' => 'required|numeric|min:0',
             'delivery' => 'required|numeric|min:0',
+            'lottery_payout' => 'required|numeric|min:0',
             'reported_total' => 'required|numeric|min:0',
+            'number_of_safedrops' => 'required|integer|min:0',
+            'safedrops_amount' => 'required|numeric|min:0',
+            'cash_on_hand' => 'required|numeric|min:0',
+            'pos_visa' => 'required|numeric|min:0',
+            'pos_mastercard' => 'required|numeric|min:0',
+            'pos_amex' => 'required|numeric|min:0',
+            'pos_commercial' => 'required|numeric|min:0',
+            'pos_up_credit' => 'required|numeric|min:0',
+            'pos_discover' => 'required|numeric|min:0',
+            'pos_interac_debit' => 'required|numeric|min:0',
+            'afd_visa' => 'required|numeric|min:0',
+            'afd_mastercard' => 'required|numeric|min:0',
+            'afd_amex' => 'required|numeric|min:0',
+            'afd_commercial' => 'required|numeric|min:0',
+            'afd_up_credit' => 'required|numeric|min:0',
+            'afd_discover' => 'required|numeric|min:0',
+            'afd_interac_debit' => 'required|numeric|min:0',
+            'journey_discount' => 'required|numeric|min:0',
+            'aeroplan_discount' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
         $dailySale->update($request->all());
         
         // Add calculated fields
+        $dailySale->daily_total = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->store_discount + $dailySale->gst + $dailySale->penny_rounding;
+        $dailySale->breakdown_total = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery + $dailySale->lottery_payout;
+        $dailySale->total_pos_transactions = $dailySale->pos_visa + $dailySale->pos_mastercard + $dailySale->pos_amex + $dailySale->pos_commercial + 
+                                            $dailySale->pos_up_credit + $dailySale->pos_discover + $dailySale->pos_interac_debit;
+        $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial + 
+                                            $dailySale->afd_up_credit + $dailySale->afd_discover + $dailySale->afd_interac_debit;
+        $dailySale->total_loyalty_discounts = $dailySale->journey_discount + $dailySale->aeroplan_discount;
+        
+        // Legacy fields for backward compatibility
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
         $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
         $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
+        
         // Ensure reported_total is not null
         $dailySale->reported_total = $dailySale->reported_total ?? 0;
 
@@ -196,9 +284,19 @@ class DailySaleController extends Controller
         
         // Add calculated fields to each sale
         $dailySales->transform(function ($sale) {
+            $sale->daily_total = $sale->fuel_sale + $sale->store_sale + $sale->store_discount + $sale->gst + $sale->penny_rounding;
+            $sale->breakdown_total = $sale->card + $sale->cash + $sale->coupon + $sale->delivery + $sale->lottery_payout;
+            $sale->total_pos_transactions = $sale->pos_visa + $sale->pos_mastercard + $sale->pos_amex + $sale->pos_commercial + 
+                                           $sale->pos_up_credit + $sale->pos_discover + $sale->pos_interac_debit;
+            $sale->total_afd_transactions = $sale->afd_visa + $sale->afd_mastercard + $sale->afd_amex + $sale->afd_commercial + 
+                                           $sale->afd_up_credit + $sale->afd_discover + $sale->afd_interac_debit;
+            $sale->total_loyalty_discounts = $sale->journey_discount + $sale->aeroplan_discount;
+            
+            // Legacy fields for backward compatibility
             $sale->total_product_sale = $sale->fuel_sale + $sale->store_sale + $sale->gst;
             $sale->total_counter_sale = $sale->card + $sale->cash + $sale->coupon + $sale->delivery;
             $sale->grand_total = $sale->total_product_sale + $sale->total_counter_sale;
+            
             // Ensure reported_total is not null
             $sale->reported_total = $sale->reported_total ?? 0;
             return $sale;
