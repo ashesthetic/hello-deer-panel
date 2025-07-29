@@ -25,6 +25,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanc
 
 // Daily Sales routes
 Route::get('daily-sales/month/{year?}/{month?}', [\App\Http\Controllers\Api\DailySaleController::class, 'getByMonth'])->middleware('auth:sanctum');
+Route::post('daily-sales/settlement-report', [\App\Http\Controllers\Api\DailySaleController::class, 'generateSettlementReport'])->middleware('auth:sanctum');
 Route::apiResource('daily-sales', \App\Http\Controllers\Api\DailySaleController::class)->middleware('auth:sanctum');
 
 // Daily Fuels routes
@@ -56,4 +57,12 @@ Route::get('/employees/{employee}/work-hours', [\App\Http\Controllers\Api\WorkHo
 // Vendor Invoice routes
 Route::get('/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware('auth:sanctum');
 Route::get('/vendor-invoices/{vendorInvoice}/download', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'downloadFile'])->middleware('auth:sanctum');
-Route::apiResource('vendor-invoices', \App\Http\Controllers\Api\VendorInvoiceController::class)->middleware('auth:sanctum'); 
+Route::apiResource('vendor-invoices', \App\Http\Controllers\Api\VendorInvoiceController::class)->middleware('auth:sanctum');
+
+// Provider routes
+Route::apiResource('providers', \App\Http\Controllers\Api\ProviderController::class)->middleware('auth:sanctum');
+
+// Provider Bill routes
+Route::get('/provider-bills/providers', [\App\Http\Controllers\Api\ProviderBillController::class, 'getProviders'])->middleware('auth:sanctum');
+Route::get('/provider-bills/{providerBill}/download', [\App\Http\Controllers\Api\ProviderBillController::class, 'downloadFile'])->middleware('auth:sanctum');
+Route::apiResource('provider-bills', \App\Http\Controllers\Api\ProviderBillController::class)->middleware('auth:sanctum'); 

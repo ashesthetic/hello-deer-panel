@@ -65,7 +65,7 @@ class VendorInvoiceController extends Controller
         }
         
         // Handle sorting
-        $allowedSortFields = ['invoice_date', 'status', 'type', 'amount', 'payment_date', 'created_at', 'updated_at'];
+        $allowedSortFields = ['invoice_date', 'status', 'type', 'total', 'payment_date', 'created_at', 'updated_at'];
         if (!in_array($sortBy, $allowedSortFields)) {
             $sortBy = 'invoice_date';
         }
@@ -89,24 +89,30 @@ class VendorInvoiceController extends Controller
 
         $request->validate([
             'vendor_id' => 'required|exists:vendors,id',
+            'invoice_number' => 'nullable|string|max:255',
             'invoice_date' => 'required|date',
             'status' => 'required|in:Paid,Unpaid',
             'type' => 'required|in:Income,Expense',
             'payment_date' => 'nullable|date|required_if:status,Paid',
             'payment_method' => 'nullable|in:Card,Cash,Bank|required_if:status,Paid',
             'invoice_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'amount' => 'required|numeric|min:0',
+            'gst' => 'required|numeric|min:0',
+            'total' => 'required|numeric|min:0',
+            'notes' => 'nullable|string|max:1000',
             'description' => 'nullable|string',
         ]);
 
         $data = [
             'vendor_id' => $request->vendor_id,
+            'invoice_number' => $request->invoice_number,
             'invoice_date' => $request->invoice_date,
             'status' => $request->status,
             'type' => $request->type,
             'payment_date' => $request->payment_date,
             'payment_method' => $request->payment_method,
-            'amount' => $request->amount,
+            'gst' => $request->gst,
+            'total' => $request->total,
+            'notes' => $request->notes,
             'description' => $request->description,
             'user_id' => $user->id,
         ];
@@ -153,24 +159,30 @@ class VendorInvoiceController extends Controller
 
         $request->validate([
             'vendor_id' => 'required|exists:vendors,id',
+            'invoice_number' => 'nullable|string|max:255',
             'invoice_date' => 'required|date',
             'status' => 'required|in:Paid,Unpaid',
             'type' => 'required|in:Income,Expense',
             'payment_date' => 'nullable|date|required_if:status,Paid',
             'payment_method' => 'nullable|in:Card,Cash,Bank|required_if:status,Paid',
             'invoice_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'amount' => 'required|numeric|min:0',
+            'gst' => 'required|numeric|min:0',
+            'total' => 'required|numeric|min:0',
+            'notes' => 'nullable|string|max:1000',
             'description' => 'nullable|string',
         ]);
 
         $data = [
             'vendor_id' => $request->vendor_id,
+            'invoice_number' => $request->invoice_number,
             'invoice_date' => $request->invoice_date,
             'status' => $request->status,
             'type' => $request->type,
             'payment_date' => $request->payment_date,
             'payment_method' => $request->payment_method,
-            'amount' => $request->amount,
+            'gst' => $request->gst,
+            'total' => $request->total,
+            'notes' => $request->notes,
             'description' => $request->description,
         ];
 
