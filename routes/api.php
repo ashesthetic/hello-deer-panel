@@ -65,4 +65,7 @@ Route::apiResource('providers', \App\Http\Controllers\Api\ProviderController::cl
 // Provider Bill routes
 Route::get('/provider-bills/providers', [\App\Http\Controllers\Api\ProviderBillController::class, 'getProviders'])->middleware('auth:sanctum');
 Route::get('/provider-bills/{providerBill}/download', [\App\Http\Controllers\Api\ProviderBillController::class, 'downloadFile'])->middleware('auth:sanctum');
-Route::apiResource('provider-bills', \App\Http\Controllers\Api\ProviderBillController::class)->middleware('auth:sanctum'); 
+Route::apiResource('provider-bills', \App\Http\Controllers\Api\ProviderBillController::class)->middleware('auth:sanctum');
+
+// Profit routes
+Route::get('/profit/percentages', [\App\Http\Controllers\Api\ProfitController::class, 'getPercentages'])->middleware('auth:sanctum'); 
