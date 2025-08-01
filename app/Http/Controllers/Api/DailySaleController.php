@@ -378,10 +378,13 @@ class DailySaleController extends Controller
         $request->validate([
             'from_date' => 'required|date',
             'to_date' => 'required|date|after_or_equal:from_date',
+            'specific_dates' => 'nullable|array',
+            'specific_dates.*' => 'date',
         ]);
 
         $fromDate = $request->input('from_date');
         $toDate = $request->input('to_date');
+        $specificDates = $request->input('specific_dates', []);
 
         // Build query based on user role
         $query = DailySale::query();
@@ -391,9 +394,28 @@ class DailySaleController extends Controller
             $query->where('user_id', $user->id);
         }
         
+        // Get sales for the date range
         $dailySales = $query->whereBetween('date', [$fromDate, $toDate])
             ->orderBy('date', 'asc')
             ->get();
+
+        // If specific dates are provided, also get those sales
+        $specificDateSales = collect();
+        if (!empty($specificDates)) {
+            $specificDateSales = DailySale::query();
+            
+            // Apply user role filter
+            if ($user->isEditor()) {
+                $specificDateSales->where('user_id', $user->id);
+            }
+            
+            $specificDateSales = $specificDateSales->whereIn('date', $specificDates)
+                ->orderBy('date', 'asc')
+                ->get();
+        }
+
+        // Merge and deduplicate sales (in case specific dates overlap with date range)
+        $allSales = $dailySales->merge($specificDateSales)->unique('id')->sortBy('date');
 
         $settlementData = [];
         
@@ -403,7 +425,7 @@ class DailySaleController extends Controller
         $amexFeePercentage = env('AMEX_FEE_PERCENTAGE', 2.22);
         $interacFeePerTransaction = env('INTERAC_FEE_PER_TRANSACTION', 0.07);
 
-        foreach ($dailySales as $sale) {
+        foreach ($allSales as $sale) {
             // Fix timezone issue by using the date directly without formatting
             $date = $sale->date->toDateString();
             
@@ -482,6 +504,7 @@ class DailySaleController extends Controller
             'data' => $settlementData,
             'from_date' => $fromDate,
             'to_date' => $toDate,
+            'specific_dates' => $specificDates,
             'total_entries' => count($settlementData),
         ]);
     }
