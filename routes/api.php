@@ -32,6 +32,11 @@ Route::apiResource('daily-sales', \App\Http\Controllers\Api\DailySaleController:
 Route::get('daily-fuels/month/{year?}/{month?}', [\App\Http\Controllers\Api\DailyFuelController::class, 'getByMonth'])->middleware('auth:sanctum');
 Route::apiResource('daily-fuels', \App\Http\Controllers\Api\DailyFuelController::class)->middleware('auth:sanctum');
 
+// Fuel Volume routes
+Route::get('fuel-volumes/month/{year?}/{month?}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'getByMonth'])->middleware('auth:sanctum');
+Route::get('fuel-volumes/daily-summary/{date?}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'getDailySummary'])->middleware('auth:sanctum');
+Route::apiResource('fuel-volumes', \App\Http\Controllers\Api\FuelVolumeController::class)->middleware('auth:sanctum');
+
 // Vendor routes
 Route::apiResource('vendors', \App\Http\Controllers\Api\VendorController::class)->middleware('auth:sanctum');
 

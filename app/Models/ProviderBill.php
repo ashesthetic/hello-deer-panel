@@ -118,7 +118,7 @@ class ProviderBill extends Model
     public function scopeOverdue($query)
     {
         return $query->where('status', 'Pending')
-                    ->where('due_date', '<', now()->toDateString());
+                    ->where('due_date', '<', \App\Utils\TimezoneUtil::now()->toDateString());
     }
 
     /**
