@@ -113,6 +113,14 @@ class ProviderBill extends Model
     }
 
     /**
+     * Scope for bills by payment date range
+     */
+    public function scopeByPaymentDateRange($query, $startDate, $endDate)
+    {
+        return $query->whereBetween('date_paid', [$startDate, $endDate]);
+    }
+
+    /**
      * Scope for overdue bills
      */
     public function scopeOverdue($query)

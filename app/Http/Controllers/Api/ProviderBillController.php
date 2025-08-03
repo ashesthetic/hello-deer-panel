@@ -24,6 +24,8 @@ class ProviderBillController extends Controller
         $providerId = $request->input('provider_id');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        $paymentStartDate = $request->input('payment_start_date');
+        $paymentEndDate = $request->input('payment_end_date');
         
         // Build query based on user role
         $query = ProviderBill::with(['provider', 'user']);
@@ -59,6 +61,11 @@ class ProviderBillController extends Controller
         // Add date range filter
         if ($startDate && $endDate) {
             $query->byDateRange($startDate, $endDate);
+        }
+
+        // Add payment date range filter (for balance page)
+        if ($paymentStartDate && $paymentEndDate) {
+            $query->byPaymentDateRange($paymentStartDate, $paymentEndDate);
         }
         
         // Handle sorting

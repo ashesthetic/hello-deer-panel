@@ -133,4 +133,12 @@ class VendorInvoice extends Model
     {
         return $query->whereBetween('invoice_date', [$startDate, $endDate]);
     }
+
+    /**
+     * Scope for filtering by payment date range
+     */
+    public function scopeByPaymentDateRange($query, $startDate, $endDate)
+    {
+        return $query->whereBetween('payment_date', [$startDate, $endDate]);
+    }
 }
