@@ -15,22 +15,35 @@ return new class extends Migration
         // It will ONLY add missing columns and NEVER drop anything
         
         if (!Schema::hasTable('daily_fuels')) {
-            // If table doesn't exist, create it with the new structure
+            // If table doesn't exist, create it with the complete structure
             Schema::create('daily_fuels', function (Blueprint $table) {
                 $table->id();
                 $table->date('date');
+                
+                // Regular fuel columns
                 $table->decimal('regular_quantity', 10, 2)->default(0);
                 $table->decimal('regular_price', 10, 2)->default(0);
                 $table->decimal('regular_total', 10, 2)->default(0);
+                $table->decimal('regular_total_sale', 10, 3)->default(0);
+                
+                // Plus fuel columns
                 $table->decimal('plus_quantity', 10, 2)->default(0);
                 $table->decimal('plus_price', 10, 2)->default(0);
                 $table->decimal('plus_total', 10, 2)->default(0);
+                $table->decimal('plus_total_sale', 10, 3)->default(0);
+                
+                // Super Plus fuel columns
                 $table->decimal('sup_plus_quantity', 10, 2)->default(0);
                 $table->decimal('sup_plus_price', 10, 2)->default(0);
                 $table->decimal('sup_plus_total', 10, 2)->default(0);
+                $table->decimal('sup_plus_total_sale', 10, 3)->default(0);
+                
+                // Diesel fuel columns
                 $table->decimal('diesel_quantity', 10, 2)->default(0);
                 $table->decimal('diesel_price', 10, 2)->default(0);
                 $table->decimal('diesel_total', 10, 2)->default(0);
+                $table->decimal('diesel_total_sale', 10, 3)->default(0);
+                
                 $table->text('notes')->nullable();
                 $table->unsignedBigInteger('user_id')->nullable();
                 $table->timestamps();
@@ -44,15 +57,22 @@ return new class extends Migration
             $this->addColumnIfMissing($table, 'regular_quantity', 'decimal');
             $this->addColumnIfMissing($table, 'regular_price', 'decimal');
             $this->addColumnIfMissing($table, 'regular_total', 'decimal');
+            $this->addColumnIfMissing($table, 'regular_total_sale', 'decimal_sale');
+            
             $this->addColumnIfMissing($table, 'plus_quantity', 'decimal');
             $this->addColumnIfMissing($table, 'plus_price', 'decimal');
             $this->addColumnIfMissing($table, 'plus_total', 'decimal');
+            $this->addColumnIfMissing($table, 'plus_total_sale', 'decimal_sale');
+            
             $this->addColumnIfMissing($table, 'sup_plus_quantity', 'decimal');
             $this->addColumnIfMissing($table, 'sup_plus_price', 'decimal');
             $this->addColumnIfMissing($table, 'sup_plus_total', 'decimal');
+            $this->addColumnIfMissing($table, 'sup_plus_total_sale', 'decimal_sale');
+            
             $this->addColumnIfMissing($table, 'diesel_quantity', 'decimal');
             $this->addColumnIfMissing($table, 'diesel_price', 'decimal');
             $this->addColumnIfMissing($table, 'diesel_total', 'decimal');
+            $this->addColumnIfMissing($table, 'diesel_total_sale', 'decimal_sale');
             
             // Add user_id if missing (without foreign key constraint to avoid issues)
             if (!Schema::hasColumn('daily_fuels', 'user_id')) {
@@ -70,10 +90,10 @@ return new class extends Migration
         Schema::table('daily_fuels', function (Blueprint $table) {
             // Only remove columns if they exist and are safe to remove
             $safeColumnsToRemove = [
-                'regular_quantity', 'regular_price', 'regular_total',
-                'plus_quantity', 'plus_price', 'plus_total',
-                'sup_plus_quantity', 'sup_plus_price', 'sup_plus_total',
-                'diesel_quantity', 'diesel_price', 'diesel_total',
+                'regular_quantity', 'regular_price', 'regular_total', 'regular_total_sale',
+                'plus_quantity', 'plus_price', 'plus_total', 'plus_total_sale',
+                'sup_plus_quantity', 'sup_plus_price', 'sup_plus_total', 'sup_plus_total_sale',
+                'diesel_quantity', 'diesel_price', 'diesel_total', 'diesel_total_sale',
             ];
             
             foreach ($safeColumnsToRemove as $column) {
@@ -99,6 +119,8 @@ return new class extends Migration
             try {
                 if ($columnType === 'decimal') {
                     $table->decimal($columnName, 10, 2)->default(0);
+                } elseif ($columnType === 'decimal_sale') {
+                    $table->decimal($columnName, 10, 3)->default(0);
                 }
             } catch (\Exception $e) {
                 // If adding column fails, just continue
