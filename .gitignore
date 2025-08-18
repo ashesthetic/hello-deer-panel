@@ -24,3 +24,10 @@ yarn-error.log
 /storage/framework/views/*
 /database/database.sqlite
 front-end/
+
+# Database transfer scripts
+db_transfer.sh
+.db_transfer_config
+
+# Local database backups
+local_backup_*.sql
