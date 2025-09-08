@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('vendor_invoices', function (Blueprint $table) {
-            $table->enum("reference", ["Vendon", "Ash", "Nafi"])->default("Vendon")->after("type");
+            $table->enum("reference", ["Vendor", "Ash", "Nafi"])->default("Vendor")->after("type");
         });
     }
 
