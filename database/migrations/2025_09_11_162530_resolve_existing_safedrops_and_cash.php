@@ -24,7 +24,7 @@ return new class extends Migration
             $defaultBankAccount = BankAccount::create([
                 'bank_name' => 'System Generated Bank',
                 'account_name' => 'Historical Resolutions Account',
-                'account_type' => 'checking',
+                'account_type' => 'Business',
                 'account_number' => '****-HISTORICAL',
                 'balance' => 0,
                 'currency' => 'CAD',
