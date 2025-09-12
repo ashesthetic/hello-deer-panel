@@ -77,6 +77,7 @@ Route::get('/employees/{employee}/work-schedules', [\App\Http\Controllers\Api\Wo
 
 // Vendor Invoice routes
 Route::get('/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware('auth:sanctum');
+Route::get('/vendor-invoices/bank-accounts', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getBankAccounts'])->middleware('auth:sanctum');
 Route::get('/vendor-invoices/{vendorInvoice}/download', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'downloadFile'])->middleware('auth:sanctum');
 Route::apiResource('vendor-invoices', \App\Http\Controllers\Api\VendorInvoiceController::class)->middleware('auth:sanctum');
 
