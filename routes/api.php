@@ -23,6 +23,14 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
+// Google OAuth2 routes
+Route::prefix('google')->group(function () {
+    Route::get('/auth-url', [\App\Http\Controllers\GoogleAuthController::class, 'getAuthUrl'])->middleware('auth:sanctum');
+    Route::get('/callback', [\App\Http\Controllers\GoogleAuthController::class, 'handleCallback']);
+    Route::get('/auth-status', [\App\Http\Controllers\GoogleAuthController::class, 'getAuthStatus'])->middleware('auth:sanctum');
+    Route::post('/revoke', [\App\Http\Controllers\GoogleAuthController::class, 'revokeAccess'])->middleware('auth:sanctum');
+});
+
 // Daily Sales routes
 Route::get('daily-sales/month/{year?}/{month?}', [\App\Http\Controllers\Api\DailySaleController::class, 'getByMonth'])->middleware(['auth:sanctum', 'not.staff']);
 Route::post('daily-sales/settlement-report', [\App\Http\Controllers\Api\DailySaleController::class, 'generateSettlementReport'])->middleware(['auth:sanctum', 'not.staff']);
@@ -81,6 +89,7 @@ Route::get('/employees/{employee}/work-schedules', [\App\Http\Controllers\Api\Wo
 Route::get('/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/vendor-invoices/bank-accounts', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getBankAccounts'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/vendor-invoices/{vendorInvoice}/download', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'downloadFile'])->middleware(['auth:sanctum', 'not.staff']);
+Route::get('/vendor-invoices/{vendorInvoice}/view-link', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getFileViewLink'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('vendor-invoices', \App\Http\Controllers\Api\VendorInvoiceController::class)->middleware(['auth:sanctum', 'not.staff']);
 
 // Provider routes
