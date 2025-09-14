@@ -73,6 +73,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user is staff
+     */
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    /**
      * Check if user can create entries
      */
     public function canCreate(): bool
@@ -141,6 +149,11 @@ class User extends Authenticatable
      */
     public function canViewTransactions($query = null): bool
     {
+        // Staff users cannot view transactions
+        if ($this->isStaff()) {
+            return false;
+        }
+        
         // Admins can view all transactions
         if ($this->isAdmin()) {
             return true;
@@ -164,6 +177,11 @@ class User extends Authenticatable
     public function canAccessBankAccount($bankAccount): bool
     {
         if (!$bankAccount) {
+            return false;
+        }
+
+        // Staff users cannot access bank accounts
+        if ($this->isStaff()) {
             return false;
         }
 

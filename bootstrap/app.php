@@ -19,6 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api([
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
+        
+        // Register middleware aliases
+        $middleware->alias([
+            'not.staff' => \App\Http\Middleware\CheckNotStaff::class,
+            'can.manage.users' => \App\Http\Middleware\CheckCanManageUsers::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
