@@ -9,6 +9,8 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
+use App\Models\GoogleToken;
 
 class GoogleDriveService
 {
@@ -135,10 +137,33 @@ class GoogleDriveService
      */
     private function getStoredAccessToken(): ?array
     {
-        // Try to get from cache first (for API requests)
-        $token = Cache::get('google_drive_token');
+        // Get current user
+        $user = Auth::user();
         
-        // Fallback to session (for web requests)
+        if (!$user) {
+            // Fallback to session for unauthenticated requests
+            return Session::get('google_drive_token');
+        }
+
+        // Try to get from database first
+        $googleToken = GoogleToken::where('user_id', $user->id)
+            ->where('service', 'google_drive')
+            ->first();
+
+        if ($googleToken) {
+            // If token exists but is expired, try to refresh it
+            if ($googleToken->isExpired() && $googleToken->refresh_token) {
+                if ($this->refreshTokenFromDatabase($googleToken)) {
+                    // Reload the token after refresh
+                    $googleToken->refresh();
+                }
+            }
+            
+            return $googleToken->toGoogleTokenArray();
+        }
+
+        // Fallback to cache/session for backward compatibility
+        $token = Cache::get('google_drive_token');
         if (!$token) {
             $token = Session::get('google_drive_token');
         }
@@ -153,12 +178,49 @@ class GoogleDriveService
      */
     private function storeAccessToken(array $token): void
     {
-        // Store in cache with expiration
+        // Get current user
+        $user = Auth::user();
+        
+        if ($user) {
+            // Store in database for persistent storage
+            GoogleToken::createFromGoogleToken($user->id, $token);
+        }
+
+        // Also store in cache and session for backward compatibility and performance
         $expiresIn = $token['expires_in'] ?? 3600;
         Cache::put('google_drive_token', $token, now()->addSeconds($expiresIn - 300)); // Subtract 5 minutes for safety
-        
-        // Also store in session for web requests
         Session::put('google_drive_token', $token);
+    }
+
+    /**
+     * Refresh access token from database
+     *
+     * @param GoogleToken $googleToken
+     * @return bool
+     */
+    private function refreshTokenFromDatabase(GoogleToken $googleToken): bool
+    {
+        try {
+            $this->client->setAccessToken($googleToken->toGoogleTokenArray());
+            
+            $newToken = $this->client->fetchAccessTokenWithRefreshToken($googleToken->refresh_token);
+            
+            if (isset($newToken['error'])) {
+                Log::error('Database token refresh error', ['error' => $newToken['error']]);
+                return false;
+            }
+            
+            // Update the token in database
+            GoogleToken::createFromGoogleToken($googleToken->user_id, $newToken);
+            
+            Log::info('Google Drive access token refreshed successfully from database');
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to refresh Google Drive access token from database', [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -207,9 +269,17 @@ class GoogleDriveService
             Log::warning('Failed to revoke token', ['error' => $e->getMessage()]);
         }
         
-        // Clear stored tokens
+        // Clear stored tokens from all sources
         Cache::forget('google_drive_token');
         Session::forget('google_drive_token');
+        
+        // Clear from database
+        $user = Auth::user();
+        if ($user) {
+            GoogleToken::where('user_id', $user->id)
+                ->where('service', 'google_drive')
+                ->delete();
+        }
         
         Log::info('Google Drive access revoked');
     }

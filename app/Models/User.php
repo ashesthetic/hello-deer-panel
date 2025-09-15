@@ -226,4 +226,20 @@ class User extends Authenticatable
     {
         return $this->hasMany(Transaction::class);
     }
+
+    /**
+     * Get the user's Google tokens
+     */
+    public function googleTokens()
+    {
+        return $this->hasMany(GoogleToken::class);
+    }
+
+    /**
+     * Get the user's Google Drive token
+     */
+    public function googleDriveToken()
+    {
+        return $this->hasOne(GoogleToken::class)->where('service', 'google_drive');
+    }
 }
