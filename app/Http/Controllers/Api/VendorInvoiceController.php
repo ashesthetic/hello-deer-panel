@@ -151,7 +151,7 @@ class VendorInvoiceController extends Controller
                 ], 401);
             }
             
-            $uploadResult = $googleDriveService->uploadFile($file, $fileName);
+            $uploadResult = $googleDriveService->uploadFile($file, $fileName, $request->invoice_date);
             
             if ($uploadResult) {
                 $data['google_drive_file_id'] = $uploadResult['file_id'];
@@ -257,7 +257,7 @@ class VendorInvoiceController extends Controller
                 Storage::disk('public')->delete($vendorInvoice->invoice_file_path);
             }
             
-            $uploadResult = $googleDriveService->uploadFile($file, $fileName);
+            $uploadResult = $googleDriveService->uploadFile($file, $fileName, $request->invoice_date);
             
             if ($uploadResult) {
                 $data['google_drive_file_id'] = $uploadResult['file_id'];

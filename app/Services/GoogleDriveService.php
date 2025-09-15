@@ -215,13 +215,127 @@ class GoogleDriveService
     }
 
     /**
+     * Get or create year/month folder structure
+     *
+     * @param string|null $date Optional date string, defaults to current date
+     * @return string|null The folder ID for the year/month folder, or null on failure
+     */
+    private function getOrCreateYearMonthFolder(?string $date = null): ?string
+    {
+        try {
+            $targetDate = $date ? \Carbon\Carbon::parse($date) : \Carbon\Carbon::now();
+            $year = $targetDate->format('Y');
+            $month = $targetDate->format('m - F'); // e.g., "09 - September"
+            
+            Log::info('Getting or creating year/month folder structure', [
+                'year' => $year,
+                'month' => $month,
+                'base_folder_id' => $this->folderId
+            ]);
+            
+            // Get or create year folder
+            $yearFolderId = $this->getOrCreateFolder($year, $this->folderId);
+            if (!$yearFolderId) {
+                Log::error('Failed to create or find year folder', ['year' => $year]);
+                return null;
+            }
+            
+            // Get or create month folder within year folder
+            $monthFolderId = $this->getOrCreateFolder($month, $yearFolderId);
+            if (!$monthFolderId) {
+                Log::error('Failed to create or find month folder', ['month' => $month, 'year' => $year]);
+                return null;
+            }
+            
+            Log::info('Year/month folder structure ready', [
+                'year_folder_id' => $yearFolderId,
+                'month_folder_id' => $monthFolderId
+            ]);
+            
+            return $monthFolderId;
+            
+        } catch (\Exception $e) {
+            Log::error('Error creating year/month folder structure', [
+                'error' => $e->getMessage(),
+                'date' => $date
+            ]);
+            return null;
+        }
+    }
+    
+    /**
+     * Get or create a folder by name within a parent folder
+     *
+     * @param string $folderName
+     * @param string $parentFolderId
+     * @return string|null The folder ID, or null on failure
+     */
+    private function getOrCreateFolder(string $folderName, string $parentFolderId): ?string
+    {
+        try {
+            // Search for existing folder
+            $query = "name='{$folderName}' and '{$parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false";
+            
+            $response = $this->service->files->listFiles([
+                'q' => $query,
+                'fields' => 'files(id, name)',
+                'supportsAllDrives' => true,
+                'includeItemsFromAllDrives' => true
+            ]);
+            
+            $files = $response->getFiles();
+            
+            if (count($files) > 0) {
+                // Folder exists, return its ID
+                $folderId = $files[0]->getId();
+                Log::info('Found existing folder', [
+                    'folder_name' => $folderName,
+                    'folder_id' => $folderId,
+                    'parent_id' => $parentFolderId
+                ]);
+                return $folderId;
+            }
+            
+            // Folder doesn't exist, create it
+            $folderMetadata = new DriveFile([
+                'name' => $folderName,
+                'mimeType' => 'application/vnd.google-apps.folder'
+            ]);
+            $folderMetadata->setParents([$parentFolderId]);
+            
+            $createdFolder = $this->service->files->create($folderMetadata, [
+                'fields' => 'id, name',
+                'supportsAllDrives' => true
+            ]);
+            
+            $folderId = $createdFolder->getId();
+            Log::info('Created new folder', [
+                'folder_name' => $folderName,
+                'folder_id' => $folderId,
+                'parent_id' => $parentFolderId
+            ]);
+            
+            return $folderId;
+            
+        } catch (\Exception $e) {
+            Log::error('Error getting or creating folder', [
+                'folder_name' => $folderName,
+                'parent_id' => $parentFolderId,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
      * Upload a file to Google Drive
      *
      * @param UploadedFile $file
      * @param string $fileName
+     * @param string|null $invoiceDate Optional invoice date for folder organization
      * @return array|null Returns array with file_id and web_view_link, or null on failure
      */
-    public function uploadFile(UploadedFile $file, string $fileName): ?array
+    public function uploadFile(UploadedFile $file, string $fileName, ?string $invoiceDate = null): ?array
     {
         if (!$this->isAuthenticated()) {
             Log::error('Google Drive not authenticated for file upload');
@@ -229,17 +343,25 @@ class GoogleDriveService
         }
 
         try {
+            // Get or create year/month folder structure based on invoice date
+            $targetFolderId = $this->getOrCreateYearMonthFolder($invoiceDate);
+            if (!$targetFolderId) {
+                Log::error('Failed to get or create year/month folder, falling back to main folder');
+                $targetFolderId = $this->folderId;
+            }
+            
             Log::info('Starting Google Drive file upload', [
                 'file_name' => $fileName,
                 'file_size' => $file->getSize(),
                 'mime_type' => $file->getMimeType(),
-                'folder_id' => $this->folderId
+                'target_folder_id' => $targetFolderId,
+                'invoice_date' => $invoiceDate
             ]);
 
             $fileMetadata = new DriveFile([
                 'name' => $fileName
             ]);
-            $fileMetadata->setParents([$this->folderId]);
+            $fileMetadata->setParents([$targetFolderId]);
 
             $content = file_get_contents($file->getPathname());
             $mimeType = $file->getMimeType();
