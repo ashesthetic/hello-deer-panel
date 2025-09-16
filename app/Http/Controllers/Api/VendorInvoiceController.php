@@ -401,7 +401,7 @@ class VendorInvoiceController extends Controller
         
         $query = Vendor::select('id', 'name');
         
-        // Editors can only see their own vendors
+        // Editors can only see their own vendors, Staff and Admin can see all
         if ($user->isEditor()) {
             $query->where('user_id', $user->id);
         }
