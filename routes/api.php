@@ -31,6 +31,7 @@ Route::prefix('google')->group(function () {
     Route::get('/auth-url', [\App\Http\Controllers\GoogleAuthController::class, 'getAuthUrl'])->middleware('auth:sanctum');
     Route::get('/callback', [\App\Http\Controllers\GoogleAuthController::class, 'handleCallback']);
     Route::get('/auth-status', [\App\Http\Controllers\GoogleAuthController::class, 'getAuthStatus'])->middleware('auth:sanctum');
+    Route::get('/test-connection', [\App\Http\Controllers\GoogleAuthController::class, 'testConnection'])->middleware('auth:sanctum');
     Route::post('/revoke', [\App\Http\Controllers\GoogleAuthController::class, 'revokeAccess'])->middleware('auth:sanctum');
 });
 
