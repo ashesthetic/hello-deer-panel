@@ -202,13 +202,15 @@ class FileImportController extends Controller
         $totalCashSaleAmount = 0;
         $totalLottoPayoutAmount = 0;
         $totalFuelSalesAmount = 0;
+        $cashSalesByShift = []; // Track cash sales by shift number
 
         foreach ($fileImports as $fileImport) {
             try {
-                // Parse JSON file to calculate cash sale amount, lotto payouts, and fuel sales
+                // Parse JSON file to calculate cash sale amount, lotto payouts, fuel sales, and shift breakdowns
                 $cashAmount = 0;
                 $lottoPayoutAmount = 0;
                 $fuelSalesAmount = 0;
+                $fileCashSalesByShift = []; // Track cash sales by shift for this file
                 
                 // Only process JSON files
                 if (strtolower(pathinfo($fileImport->original_name, PATHINFO_EXTENSION)) === 'json') {
@@ -233,6 +235,9 @@ class FileImportController extends Controller
                         if ($data && is_array($data)) {
                             // Iterate through transactions to find Canadian_Cash_Used amounts, Lotto Payouts, and Fuel Sales
                             foreach ($data as $transaction) {
+                                // Get shift number for tracking cash sales by shift
+                                $shiftNumber = $transaction['Attributes']['Shift_Number'] ?? 'Unknown';
+                                
                                 // Get tender prepay amount for business rule checks
                                 $tenderPrepayAmount = $transaction['Tenders']['Prepay_Amount'] ?? null;
                                 
@@ -246,8 +251,15 @@ class FileImportController extends Controller
                                     $shouldIncludeCashTransaction = ($tenderPrepayAmount === null || $tenderPrepayAmount < 0);
                                     
                                     if ($shouldIncludeCashTransaction) {
+                                        $cashAmountForTransaction = $canadianCashUsed / 100;
                                         // Convert from cents to dollars (430 -> 4.30)
-                                        $cashAmount += $canadianCashUsed / 100;
+                                        $cashAmount += $cashAmountForTransaction;
+                                        
+                                        // Track cash sales by shift
+                                        if (!isset($fileCashSalesByShift[$shiftNumber])) {
+                                            $fileCashSalesByShift[$shiftNumber] = 0;
+                                        }
+                                        $fileCashSalesByShift[$shiftNumber] += $cashAmountForTransaction;
                                     }
                                 }
                                 
@@ -282,6 +294,14 @@ class FileImportController extends Controller
                             $totalCashSaleAmount += $cashAmount;
                             $totalLottoPayoutAmount += $lottoPayoutAmount;
                             $totalFuelSalesAmount += $fuelSalesAmount;
+                            
+                            // Aggregate cash sales by shift across all files
+                            foreach ($fileCashSalesByShift as $shift => $amount) {
+                                if (!isset($cashSalesByShift[$shift])) {
+                                    $cashSalesByShift[$shift] = 0;
+                                }
+                                $cashSalesByShift[$shift] += $amount;
+                            }
                         }
                     }
                 }
@@ -315,6 +335,12 @@ class FileImportController extends Controller
             }
         }
 
+        // Round cash sales by shift values
+        $roundedCashSalesByShift = [];
+        foreach ($cashSalesByShift as $shift => $amount) {
+            $roundedCashSalesByShift[$shift] = round($amount, 2);
+        }
+
         return response()->json([
             'info' => $info,
             'success' => true,
@@ -327,6 +353,7 @@ class FileImportController extends Controller
             'total_lotto_payout_amount' => round($totalLottoPayoutAmount, 2),
             'total_fuel_sales_amount' => round($totalFuelSalesAmount, 2),
             'net_cash_amount' => round($totalCashSaleAmount - $totalLottoPayoutAmount, 2),
+            'cash_sales_by_shift' => $roundedCashSalesByShift,
             'files' => $processedFiles,
             'errors' => $errors,
             'processed_at' => now()->toISOString(),
