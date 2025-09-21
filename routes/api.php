@@ -127,7 +127,12 @@ Route::apiResource('owner-equities', \App\Http\Controllers\Api\OwnerEquityContro
 // File Import routes
 Route::post('/file-imports/upload', [\App\Http\Controllers\Api\FileImportController::class, 'uploadFiles'])->middleware('auth:sanctum');
 Route::get('/file-imports/stats', [\App\Http\Controllers\Api\FileImportController::class, 'stats'])->middleware('auth:sanctum');
-Route::apiResource('file-imports', \App\Http\Controllers\Api\FileImportController::class)->middleware('auth:sanctum'); 
+Route::apiResource('file-imports', \App\Http\Controllers\Api\FileImportController::class)->middleware('auth:sanctum');
+
+// SFT Processing routes (Admin only)
+Route::post('/sft-processor/process-sales-data', [\App\Http\Controllers\Api\SftProcessorController::class, 'processSalesData'])->middleware(['auth:sanctum', 'not.staff']);
+Route::get('/sft-processor/available-dates', [\App\Http\Controllers\Api\SftProcessorController::class, 'getAvailableImportDates'])->middleware(['auth:sanctum', 'not.staff']);
+Route::get('/sft-processor/files-for-date', [\App\Http\Controllers\Api\SftProcessorController::class, 'getSftFilesForDate'])->middleware(['auth:sanctum', 'not.staff']); 
 
 Route::get('/profit/percentages', [\App\Http\Controllers\Api\ProfitController::class, 'getPercentages'])->middleware(['auth:sanctum', 'not.staff']);
 
