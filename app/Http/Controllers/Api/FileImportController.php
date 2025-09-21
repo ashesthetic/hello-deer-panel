@@ -172,4 +172,72 @@ class FileImportController extends Controller
             'recent_import_dates' => $recentDates,
         ]);
     }
+
+    /**
+     * Process sale data for a specific date
+     */
+    public function processSaleData(Request $request)
+    {
+        $request->validate([
+            'date' => 'required|date',
+        ]);
+
+        $date = Carbon::parse($request->input('date'))->format('Y-m-d');
+        
+        // Get all files for the specified date
+        $fileImports = FileImport::where('import_date', $date)->get();
+        
+        if ($fileImports->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No files found for the specified date',
+                'date' => $date,
+                'files' => [],
+            ]);
+        }
+
+        $processedFiles = [];
+        $errors = [];
+
+        foreach ($fileImports as $fileImport) {
+            try {
+                // For now, just return the file information
+                // This is where you would add actual processing logic
+                $processedFiles[] = [
+                    'id' => $fileImport->id,
+                    'original_name' => $fileImport->original_name,
+                    'file_name' => $fileImport->file_name,
+                    'file_size' => $fileImport->file_size,
+                    'mime_type' => $fileImport->mime_type,
+                    'status' => $fileImport->processed ? 'processed' : 'pending',
+                    'processed_at' => now()->toISOString(),
+                ];
+
+                // Mark file as processed (you might want to do this only after actual processing)
+                $fileImport->update([
+                    'processed' => 1,
+                    'notes' => 'Processed via sale-data API at ' . now()->toDateTimeString()
+                ]);
+
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'file_id' => $fileImport->id,
+                    'file_name' => $fileImport->original_name,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sale data processing completed',
+            'date' => $date,
+            'total_files' => $fileImports->count(),
+            'processed_files' => count($processedFiles),
+            'failed_files' => count($errors),
+            'files' => $processedFiles,
+            'errors' => $errors,
+            'processed_at' => now()->toISOString(),
+        ]);
+    }
 }

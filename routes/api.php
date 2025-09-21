@@ -126,6 +126,7 @@ Route::apiResource('owner-equities', \App\Http\Controllers\Api\OwnerEquityContro
 // Profit routes
 // File Import routes (Admin only)
 Route::post('/file-imports/upload', [\App\Http\Controllers\Api\FileImportController::class, 'uploadFiles'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::post('/file-imports/sale-data', [\App\Http\Controllers\Api\FileImportController::class, 'processSaleData'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::get('/file-imports/stats', [\App\Http\Controllers\Api\FileImportController::class, 'stats'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('file-imports', \App\Http\Controllers\Api\FileImportController::class)->middleware(['auth:sanctum', 'can.manage.users']); 
 
