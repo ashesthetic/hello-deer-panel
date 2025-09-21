@@ -252,31 +252,20 @@ class FileImportController extends Controller
                                 // Check for items in InputLineItems
                                 if (isset($transaction['InputLineItems']) && is_array($transaction['InputLineItems'])) {
                                     foreach ($transaction['InputLineItems'] as $lineItem) {
-                                        if (isset($lineItem['English_Description'])) {
+                                        // Check for Lotto Payout items
+                                        if (isset($lineItem['English_Description']) && isset($lineItem['Amount'])) {
                                             $description = trim($lineItem['English_Description']);
-                                            
-                                            // Check for Lotto Payout items
-                                            if (isset($lineItem['Amount']) && strcasecmp($description, 'Lotto Payout') === 0) {
+                                            if (strcasecmp($description, 'Lotto Payout') === 0) {
                                                 // Convert from cents to dollars (1500 -> 15.00)
                                                 $lottoPayoutAmount += $lineItem['Amount'] / 100;
                                             }
-                                            
-                                            // Check for Fuel Sales items
-                                            if (isset($lineItem['Total'])) {
-                                                $isFuelSale = false;
-                                                
-                                                // Check for fuel types: Regular(87), Sup Plus(94), Plus(91)
-                                                if (strcasecmp($description, 'Regular(87)') === 0 ||
-                                                    strcasecmp($description, 'Sup Plus(94)') === 0 ||
-                                                    strcasecmp($description, 'Plus(91)') === 0) {
-                                                    $isFuelSale = true;
-                                                }
-                                                
-                                                if ($isFuelSale && $lineItem['PrepayAmount'] >= 0) {
-                                                    $info[] = $lineItem['PrepayAmount'];
-                                                    // Convert from cents to dollars (1329 -> 13.29)
-                                                    $fuelSalesAmount += $lineItem['Total'] / 100;
-                                                }
+                                        }
+                                        
+                                        // Check for Fuel Sales items using LineItemType
+                                        if (isset($lineItem['LineItemType']) && isset($lineItem['Total'])) {
+                                            if ($lineItem['LineItemType'] === 'GasLineItem') {
+                                                // Convert from cents to dollars (2000 -> 20.00)
+                                                $fuelSalesAmount += $lineItem['Total'] / 100;
                                             }
                                         }
                                     }
