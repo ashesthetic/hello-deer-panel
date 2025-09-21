@@ -200,11 +200,13 @@ class FileImportController extends Controller
         $processedFiles = [];
         $errors = [];
         $totalCashSaleAmount = 0;
+        $totalLottoPayoutAmount = 0;
 
         foreach ($fileImports as $fileImport) {
             try {
-                // Parse JSON file to calculate cash sale amount
+                // Parse JSON file to calculate cash sale amount and lotto payouts
                 $cashAmount = 0;
+                $lottoPayoutAmount = 0;
                 
                 // Only process JSON files
                 if (strtolower(pathinfo($fileImport->original_name, PATHINFO_EXTENSION)) === 'json') {
@@ -227,29 +229,42 @@ class FileImportController extends Controller
                         }
                         
                         if ($data && is_array($data)) {
-                            // Iterate through transactions to find Canadian_Cash_Used amounts
+                            // Iterate through transactions to find Canadian_Cash_Used amounts and Lotto Payouts
                             foreach ($data as $transaction) {
                                 // Check if transaction has Canadian_Cash_Used tender
-                                if (!isset($transaction['Tenders']['Canadian_Cash_Used'])) {
-                                    continue;
+                                if (isset($transaction['Tenders']['Canadian_Cash_Used'])) {
+                                    $canadianCashUsed = $transaction['Tenders']['Canadian_Cash_Used'];
+                                    $prepayAmount = $transaction['Tenders']['Prepay_Amount'] ?? null;
+                                    
+                                    // Apply business rules for including cash transactions:
+                                    // 1. Include if no prepay amount exists
+                                    // 2. Include if prepay amount is negative (refunds/adjustments)
+                                    $shouldIncludeCashTransaction = ($prepayAmount === null || $prepayAmount < 0);
+                                    
+                                    if ($shouldIncludeCashTransaction) {
+                                        $info[] = $canadianCashUsed;
+                                        // Convert from cents to dollars (430 -> 4.30)
+                                        $cashAmount += $canadianCashUsed / 100;
+                                    }
                                 }
                                 
-                                $canadianCashUsed = $transaction['Tenders']['Canadian_Cash_Used'];
-                                $prepayAmount = $transaction['Tenders']['Prepay_Amount'] ?? null;
-                                
-                                // Apply business rules for including cash transactions:
-                                // 1. Include if no prepay amount exists
-                                // 2. Include if prepay amount is negative (refunds/adjustments)
-                                $shouldIncludeCashTransaction = ($prepayAmount === null || $prepayAmount < 0);
-                                
-                                if ($shouldIncludeCashTransaction) {
-                                    $info[] = $canadianCashUsed;
-                                    // Convert from cents to dollars (430 -> 4.30)
-                                    $cashAmount += $canadianCashUsed / 100;
+                                // Check for Lotto Payout items in InputLineItems
+                                if (isset($transaction['InputLineItems']) && is_array($transaction['InputLineItems'])) {
+                                    foreach ($transaction['InputLineItems'] as $lineItem) {
+                                        if (isset($lineItem['English_Description']) && isset($lineItem['Amount'])) {
+                                            // Trim and compare for "Lotto Payout"
+                                            $description = trim($lineItem['English_Description']);
+                                            if (strcasecmp($description, 'Lotto Payout') === 0) {
+                                                // Convert from cents to dollars (1500 -> 15.00)
+                                                $lottoPayoutAmount += $lineItem['Amount'] / 100;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             
                             $totalCashSaleAmount += $cashAmount;
+                            $totalLottoPayoutAmount += $lottoPayoutAmount;
                         }
                     }
                 }
@@ -263,6 +278,7 @@ class FileImportController extends Controller
                     'mime_type' => $fileImport->mime_type,
                     'status' => $fileImport->processed ? 'processed' : 'pending',
                     'cash_amount' => round($cashAmount, 2),
+                    'lotto_payout_amount' => round($lottoPayoutAmount, 2),
                     'processed_at' => now()->toISOString(),
                 ];
 
@@ -290,6 +306,7 @@ class FileImportController extends Controller
             'processed_files' => count($processedFiles),
             'failed_files' => count($errors),
             'total_cash_sale_amount' => round($totalCashSaleAmount, 2),
+            'total_lotto_payout_amount' => round($totalLottoPayoutAmount, 2),
             'files' => $processedFiles,
             'errors' => $errors,
             'processed_at' => now()->toISOString(),
