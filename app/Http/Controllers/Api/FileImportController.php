@@ -210,8 +210,20 @@ class FileImportController extends Controller
                     $filePath = storage_path('app/' . $fileImport->file_path);
                     
                     if (file_exists($filePath)) {
+                        // Read file with proper UTF-8 handling
                         $jsonContent = file_get_contents($filePath);
+                        
+                        // Handle potential UTF-8 BOM and encoding issues
+                        $jsonContent = mb_convert_encoding($jsonContent, 'UTF-8', 'UTF-8');
+                        $jsonContent = trim($jsonContent, "\xEF\xBB\xBF"); // Remove UTF-8 BOM if present
+                        
+                        // Attempt to decode JSON
                         $data = json_decode($jsonContent, true);
+                        
+                        // Check for JSON decode errors
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            throw new \Exception('JSON decode error: ' . json_last_error_msg());
+                        }
                         
                         if ($data && is_array($data)) {
                             // Iterate through transactions to find Canadian_Cash_Used amounts
@@ -227,8 +239,7 @@ class FileImportController extends Controller
                     }
                 }
 
-                // For now, just return the file information
-                // This is where you would add actual processing logic
+                // Return the file information
                 $processedFiles[] = [
                     'id' => $fileImport->id,
                     'original_name' => $fileImport->original_name,
@@ -240,7 +251,7 @@ class FileImportController extends Controller
                     'processed_at' => now()->toISOString(),
                 ];
 
-                // Mark file as processed (you might want to do this only after actual processing)
+                // Mark file as processed
                 $fileImport->update([
                     'processed' => 1,
                     'notes' => 'Processed via sale-data API at ' . now()->toDateTimeString()
