@@ -178,6 +178,7 @@ class FileImportController extends Controller
      */
     public function processSaleData(Request $request)
     {
+        $info = [];
         $request->validate([
             'date' => 'required|date',
         ]);
@@ -207,7 +208,7 @@ class FileImportController extends Controller
                 
                 // Only process JSON files
                 if (strtolower(pathinfo($fileImport->original_name, PATHINFO_EXTENSION)) === 'json') {
-                    $filePath = storage_path('app/' . $fileImport->file_path);
+                    $filePath = storage_path('app/private/' . $fileImport->file_path);
                     
                     if (file_exists($filePath)) {
                         // Read file with proper UTF-8 handling
@@ -228,9 +229,23 @@ class FileImportController extends Controller
                         if ($data && is_array($data)) {
                             // Iterate through transactions to find Canadian_Cash_Used amounts
                             foreach ($data as $transaction) {
-                                if (isset($transaction['Tenders']['Canadian_Cash_Used'])) {
+                                // Check if transaction has Canadian_Cash_Used tender
+                                if (!isset($transaction['Tenders']['Canadian_Cash_Used'])) {
+                                    continue;
+                                }
+                                
+                                $canadianCashUsed = $transaction['Tenders']['Canadian_Cash_Used'];
+                                $prepayAmount = $transaction['Tenders']['Prepay_Amount'] ?? null;
+                                
+                                // Apply business rules for including cash transactions:
+                                // 1. Include if no prepay amount exists
+                                // 2. Include if prepay amount is negative (refunds/adjustments)
+                                $shouldIncludeCashTransaction = ($prepayAmount === null || $prepayAmount < 0);
+                                
+                                if ($shouldIncludeCashTransaction) {
+                                    $info[] = $canadianCashUsed;
                                     // Convert from cents to dollars (430 -> 4.30)
-                                    $cashAmount += $transaction['Tenders']['Canadian_Cash_Used'] / 100;
+                                    $cashAmount += $canadianCashUsed / 100;
                                 }
                             }
                             
@@ -267,6 +282,7 @@ class FileImportController extends Controller
         }
 
         return response()->json([
+            'info' => $info,
             'success' => true,
             'message' => 'Sale data processing completed',
             'date' => $date,
