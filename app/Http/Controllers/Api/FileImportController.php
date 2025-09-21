@@ -244,7 +244,6 @@ class FileImportController extends Controller
                                     $shouldIncludeCashTransaction = ($prepayAmount === null || $prepayAmount < 0);
                                     
                                     if ($shouldIncludeCashTransaction) {
-                                        $info[] = $canadianCashUsed;
                                         // Convert from cents to dollars (430 -> 4.30)
                                         $cashAmount += $canadianCashUsed / 100;
                                     }
@@ -263,7 +262,7 @@ class FileImportController extends Controller
                                             }
                                             
                                             // Check for Fuel Sales items
-                                            if (isset($lineItem['UnModifiedPrice'])) {
+                                            if (isset($lineItem['Total'])) {
                                                 $isFuelSale = false;
                                                 
                                                 // Check for fuel types: Regular(87), Sup Plus(94), Plus(91)
@@ -273,9 +272,10 @@ class FileImportController extends Controller
                                                     $isFuelSale = true;
                                                 }
                                                 
-                                                if ($isFuelSale) {
+                                                if ($isFuelSale && $lineItem['PrepayAmount'] >= 0) {
+                                                    $info[] = $lineItem['PrepayAmount'];
                                                     // Convert from cents to dollars (1329 -> 13.29)
-                                                    $fuelSalesAmount += $lineItem['UnModifiedPrice'] / 100;
+                                                    $fuelSalesAmount += $lineItem['Total'] / 100;
                                                 }
                                             }
                                         }
@@ -330,6 +330,7 @@ class FileImportController extends Controller
             'total_cash_sale_amount' => round($totalCashSaleAmount, 2),
             'total_lotto_payout_amount' => round($totalLottoPayoutAmount, 2),
             'total_fuel_sales_amount' => round($totalFuelSalesAmount, 2),
+            'net_cash_amount' => round($totalCashSaleAmount - $totalLottoPayoutAmount, 2),
             'files' => $processedFiles,
             'errors' => $errors,
             'processed_at' => now()->toISOString(),
