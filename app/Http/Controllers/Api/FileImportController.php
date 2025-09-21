@@ -198,9 +198,35 @@ class FileImportController extends Controller
 
         $processedFiles = [];
         $errors = [];
+        $totalCashSaleAmount = 0;
 
         foreach ($fileImports as $fileImport) {
             try {
+                // Parse JSON file to calculate cash sale amount
+                $cashAmount = 0;
+                
+                // Only process JSON files
+                if (strtolower(pathinfo($fileImport->original_name, PATHINFO_EXTENSION)) === 'json') {
+                    $filePath = storage_path('app/' . $fileImport->file_path);
+                    
+                    if (file_exists($filePath)) {
+                        $jsonContent = file_get_contents($filePath);
+                        $data = json_decode($jsonContent, true);
+                        
+                        if ($data && is_array($data)) {
+                            // Iterate through transactions to find Canadian_Cash_Used amounts
+                            foreach ($data as $transaction) {
+                                if (isset($transaction['Tenders']['Canadian_Cash_Used'])) {
+                                    // Convert from cents to dollars (430 -> 4.30)
+                                    $cashAmount += $transaction['Tenders']['Canadian_Cash_Used'] / 100;
+                                }
+                            }
+                            
+                            $totalCashSaleAmount += $cashAmount;
+                        }
+                    }
+                }
+
                 // For now, just return the file information
                 // This is where you would add actual processing logic
                 $processedFiles[] = [
@@ -210,6 +236,7 @@ class FileImportController extends Controller
                     'file_size' => $fileImport->file_size,
                     'mime_type' => $fileImport->mime_type,
                     'status' => $fileImport->processed ? 'processed' : 'pending',
+                    'cash_amount' => round($cashAmount, 2),
                     'processed_at' => now()->toISOString(),
                 ];
 
@@ -235,6 +262,7 @@ class FileImportController extends Controller
             'total_files' => $fileImports->count(),
             'processed_files' => count($processedFiles),
             'failed_files' => count($errors),
+            'total_cash_sale_amount' => round($totalCashSaleAmount, 2),
             'files' => $processedFiles,
             'errors' => $errors,
             'processed_at' => now()->toISOString(),
