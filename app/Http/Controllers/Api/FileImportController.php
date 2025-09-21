@@ -233,15 +233,17 @@ class FileImportController extends Controller
                         if ($data && is_array($data)) {
                             // Iterate through transactions to find Canadian_Cash_Used amounts, Lotto Payouts, and Fuel Sales
                             foreach ($data as $transaction) {
+                                // Get tender prepay amount for business rule checks
+                                $tenderPrepayAmount = $transaction['Tenders']['Prepay_Amount'] ?? null;
+                                
                                 // Check if transaction has Canadian_Cash_Used tender
                                 if (isset($transaction['Tenders']['Canadian_Cash_Used'])) {
                                     $canadianCashUsed = $transaction['Tenders']['Canadian_Cash_Used'];
-                                    $prepayAmount = $transaction['Tenders']['Prepay_Amount'] ?? null;
                                     
                                     // Apply business rules for including cash transactions:
                                     // 1. Include if no prepay amount exists
                                     // 2. Include if prepay amount is negative (refunds/adjustments)
-                                    $shouldIncludeCashTransaction = ($prepayAmount === null || $prepayAmount < 0);
+                                    $shouldIncludeCashTransaction = ($tenderPrepayAmount === null || $tenderPrepayAmount < 0);
                                     
                                     if ($shouldIncludeCashTransaction) {
                                         // Convert from cents to dollars (430 -> 4.30)
@@ -264,8 +266,13 @@ class FileImportController extends Controller
                                         // Check for Fuel Sales items using LineItemType
                                         if (isset($lineItem['LineItemType']) && isset($lineItem['Total'])) {
                                             if ($lineItem['LineItemType'] === 'GasLineItem') {
-                                                // Convert from cents to dollars (2000 -> 20.00)
-                                                $fuelSalesAmount += $lineItem['Total'] / 100;
+                                                // Apply business rule: Don't include fuel sales when Tenders > Prepay_Amount is negative
+                                                $shouldIncludeFuelSale = ($tenderPrepayAmount === null || $tenderPrepayAmount >= 0);
+                                                
+                                                if ($shouldIncludeFuelSale) {
+                                                    // Convert from cents to dollars (2000 -> 20.00)
+                                                    $fuelSalesAmount += $lineItem['Total'] / 100;
+                                                }
                                             }
                                         }
                                     }
