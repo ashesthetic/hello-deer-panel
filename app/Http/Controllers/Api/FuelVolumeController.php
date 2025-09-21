@@ -131,6 +131,60 @@ class FuelVolumeController extends Controller
     }
 
     /**
+     * Store a newly created fuel volume for Staff users
+     */
+    public function storeForStaff(Request $request)
+    {
+        $user = $request->user();
+        
+        // Staff users are specifically allowed to create fuel volumes through this endpoint
+        if (!$user->isStaff()) {
+            return response()->json(['message' => 'Unauthorized. This endpoint is only for staff users.'], 403);
+        }
+
+        $request->validate([
+            'date' => 'required|date',
+            'shift' => ['required', Rule::in(['morning', 'evening'])],
+            'regular_tc_volume' => 'nullable|numeric|min:0',
+            'regular_product_height' => 'nullable|numeric|min:0',
+            'premium_tc_volume' => 'nullable|numeric|min:0',
+            'premium_product_height' => 'nullable|numeric|min:0',
+            'diesel_tc_volume' => 'nullable|numeric|min:0',
+            'diesel_product_height' => 'nullable|numeric|min:0',
+            'added_regular' => 'nullable|numeric|min:0',
+            'added_premium' => 'nullable|numeric|min:0',
+            'added_diesel' => 'nullable|numeric|min:0',
+        ]);
+
+        // Check if entry already exists for this date and shift
+        $existingEntry = FuelVolume::where('date', $request->date)
+            ->where('shift', $request->shift)
+            ->first();
+
+        if ($existingEntry) {
+            return response()->json([
+                'message' => 'An entry already exists for this date and shift',
+                'data' => $existingEntry
+            ], 422);
+        }
+
+        $data = $request->all();
+        $data['user_id'] = $user->id; // Associate with current user
+        
+        $fuelVolume = FuelVolume::create($data);
+        
+        // Add calculated fields
+        $fuelVolume->volume_end_of_day = $fuelVolume->volume_end_of_day;
+        $fuelVolume->evening_shift = $fuelVolume->evening_shift;
+        $fuelVolume->morning_shift = $fuelVolume->morning_shift;
+
+        return response()->json([
+            'message' => 'Fuel volume created successfully',
+            'data' => $fuelVolume
+        ]);
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(Request $request, FuelVolume $fuelVolume)

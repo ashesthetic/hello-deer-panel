@@ -73,6 +73,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user is staff
+     */
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
+
+    /**
      * Check if user can create entries
      */
     public function canCreate(): bool
@@ -137,6 +145,65 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user can view transactions
+     */
+    public function canViewTransactions($query = null): bool
+    {
+        // Staff users cannot view transactions
+        if ($this->isStaff()) {
+            return false;
+        }
+        
+        // Admins can view all transactions
+        if ($this->isAdmin()) {
+            return true;
+        }
+        
+        // Editors and viewers can view transactions they created or have access to
+        if ($this->isEditor() || $this->isViewer()) {
+            if ($query) {
+                // Apply filter to show only user's transactions when query is provided
+                $query->where('user_id', $this->id);
+            }
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Check if user can access a specific bank account
+     */
+    public function canAccessBankAccount($bankAccount): bool
+    {
+        if (!$bankAccount) {
+            return false;
+        }
+
+        // Staff users cannot access bank accounts
+        if ($this->isStaff()) {
+            return false;
+        }
+
+        // Admins can access all bank accounts
+        if ($this->isAdmin()) {
+            return true;
+        }
+        
+        // Editors can access bank accounts they created
+        if ($this->isEditor()) {
+            return $bankAccount->user_id === $this->id;
+        }
+        
+        // Viewers can view bank accounts they created
+        if ($this->isViewer()) {
+            return $bankAccount->user_id === $this->id;
+        }
+        
+        return false;
+    }
+
+    /**
      * Relationship with daily sales
      */
     public function dailySales()
@@ -150,5 +217,29 @@ class User extends Authenticatable
     public function dailyFuels()
     {
         return $this->hasMany(DailyFuel::class);
+    }
+
+    /**
+     * Relationship with transactions
+     */
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
+    /**
+     * Get the user's Google tokens
+     */
+    public function googleTokens()
+    {
+        return $this->hasMany(GoogleToken::class);
+    }
+
+    /**
+     * Get the user's Google Drive token
+     */
+    public function googleDriveToken()
+    {
+        return $this->hasOne(GoogleToken::class)->where('service', 'google_drive');
     }
 }
