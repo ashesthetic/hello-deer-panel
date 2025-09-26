@@ -233,6 +233,100 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Get all employees with their total work hours
+     */
+    public function employeesWithHours()
+    {
+        $employees = Employee::with('workHours')
+            ->orderBy('full_legal_name')
+            ->get();
+
+        $employeeData = $employees->map(function ($employee) {
+            $totalHours = $employee->workHours->sum('total_hours');
+            $totalDays = $employee->workHours->groupBy('date')->count();
+            $avgHoursPerDay = $totalDays > 0 ? round($totalHours / $totalDays, 2) : 0;
+            $totalEarnings = round($totalHours * $employee->hourly_rate, 2);
+            
+            // Calculate total due as the difference between earnings and what's been paid
+            $totalDue = max(0, $totalEarnings - $employee->total_paid);
+
+            return [
+                'id' => $employee->id,
+                'full_legal_name' => $employee->full_legal_name,
+                'preferred_name' => $employee->preferred_name,
+                'position' => $employee->position,
+                'department' => $employee->department,
+                'hire_date' => $employee->hire_date,
+                'status' => $employee->status,
+                'hourly_rate' => $employee->hourly_rate,
+                'total_hours' => round($totalHours, 2),
+                'total_work_days' => $totalDays,
+                'avg_hours_per_day' => $avgHoursPerDay,
+                'total_earnings' => $totalEarnings,
+                'total_paid' => round($employee->total_paid, 2),
+                'total_due' => round($totalDue, 2),
+                'resolved_hours' => round($employee->resolved_hours, 2),
+                'unpaid_hours' => round($totalHours - $employee->resolved_hours, 2)
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $employeeData
+        ]);
+    }
+
+    /**
+     * Resolve hours for a specific employee
+     */
+    public function resolveHours(Request $request, Employee $employee)
+    {
+        $request->validate([
+            'resolved_hours' => 'required|numeric|min:0',
+            'notes' => 'nullable|string'
+        ]);
+
+        $resolvedHours = $request->resolved_hours;
+        $previousResolved = $employee->resolved_hours;
+        
+        // Calculate the new payment based on additional resolved hours
+        $additionalHours = $resolvedHours - $previousResolved;
+        $additionalPayment = $additionalHours * $employee->hourly_rate;
+        
+        // Calculate new total paid amount
+        $newTotalPaid = $employee->total_paid + $additionalPayment;
+        
+        // Calculate total earnings based on all hours worked
+        $totalHours = $employee->workHours->sum('total_hours');
+        $totalEarnings = $totalHours * $employee->hourly_rate;
+        
+        // Calculate what's still due (total earnings minus what's been paid)
+        $totalDue = max(0, $totalEarnings - $newTotalPaid);
+        
+        // Update employee data
+        $employee->update([
+            'resolved_hours' => $resolvedHours,
+            'total_paid' => $newTotalPaid,
+            'total_due' => $totalDue,
+            'unpaid_hours' => max(0, $totalHours - $resolvedHours)
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Hours resolved successfully',
+            'data' => [
+                'employee_id' => $employee->id,
+                'resolved_hours' => $resolvedHours,
+                'additional_payment' => round($additionalPayment, 2),
+                'total_paid' => round($newTotalPaid, 2),
+                'total_due' => round($totalDue, 2),
+                'unpaid_hours' => round($totalHours - $resolvedHours, 2),
+                'total_earnings' => round($totalEarnings, 2)
+            ]
+        ]);
+    }
+
+    /**
      * Get employee earnings for current and next pay periods
      */
     public function earnings()
