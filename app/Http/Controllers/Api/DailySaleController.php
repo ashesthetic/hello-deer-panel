@@ -380,11 +380,15 @@ class DailySaleController extends Controller
             'to_date' => 'required|date|after_or_equal:from_date',
             'specific_dates' => 'nullable|array',
             'specific_dates.*' => 'date',
+            'include_debit' => 'nullable|boolean',
+            'include_credit' => 'nullable|boolean',
         ]);
 
         $fromDate = $request->input('from_date');
         $toDate = $request->input('to_date');
         $specificDates = $request->input('specific_dates', []);
+        $includeDebit = $request->input('include_debit', true); // Default to true for backward compatibility
+        $includeCredit = $request->input('include_credit', true); // Default to true for backward compatibility
 
         // Build query based on user role
         $query = DailySale::query();
@@ -430,22 +434,31 @@ class DailySaleController extends Controller
             $date = $sale->date->toDateString();
             
             // Define all payment types with their corresponding fee types
-            $paymentTypes = [
-                'POS VISA' => ['amount' => $sale->pos_visa, 'fee_type' => 'visa'],
-                'POS MASTERCARD' => ['amount' => $sale->pos_mastercard, 'fee_type' => 'mastercard'],
-                'POS AMEX' => ['amount' => $sale->pos_amex, 'fee_type' => 'amex'],
-                'POS COMMERCIAL' => ['amount' => $sale->pos_commercial, 'fee_type' => null],
-                'POS UP CREDIT' => ['amount' => $sale->pos_up_credit, 'fee_type' => null],
-                'POS DISCOVER' => ['amount' => $sale->pos_discover, 'fee_type' => null],
-                'POS INTERAC' => ['amount' => $sale->pos_interac_debit, 'fee_type' => 'interac', 'transaction_count' => $sale->pos_debit_transaction_count],
-                'AFD VISA' => ['amount' => $sale->afd_visa, 'fee_type' => 'visa'],
-                'AFD MASTERCARD' => ['amount' => $sale->afd_mastercard, 'fee_type' => 'mastercard'],
-                'AFD AMEX' => ['amount' => $sale->afd_amex, 'fee_type' => 'amex'],
-                'AFD COMMERCIAL' => ['amount' => $sale->afd_commercial, 'fee_type' => null],
-                'AFD UP CREDIT' => ['amount' => $sale->afd_up_credit, 'fee_type' => null],
-                'AFD DISCOVER' => ['amount' => $sale->afd_discover, 'fee_type' => null],
-                'AFD INTERAC' => ['amount' => $sale->afd_interac_debit, 'fee_type' => 'interac', 'transaction_count' => $sale->afd_debit_transaction_count],
+            $allPaymentTypes = [
+                'POS VISA' => ['amount' => $sale->pos_visa, 'fee_type' => 'visa', 'transaction_type' => 'credit'],
+                'POS MASTERCARD' => ['amount' => $sale->pos_mastercard, 'fee_type' => 'mastercard', 'transaction_type' => 'credit'],
+                'POS AMEX' => ['amount' => $sale->pos_amex, 'fee_type' => 'amex', 'transaction_type' => 'credit'],
+                'POS COMMERCIAL' => ['amount' => $sale->pos_commercial, 'fee_type' => null, 'transaction_type' => 'credit'],
+                'POS UP CREDIT' => ['amount' => $sale->pos_up_credit, 'fee_type' => null, 'transaction_type' => 'credit'],
+                'POS DISCOVER' => ['amount' => $sale->pos_discover, 'fee_type' => null, 'transaction_type' => 'credit'],
+                'POS INTERAC' => ['amount' => $sale->pos_interac_debit, 'fee_type' => 'interac', 'transaction_count' => $sale->pos_debit_transaction_count, 'transaction_type' => 'debit'],
+                'AFD VISA' => ['amount' => $sale->afd_visa, 'fee_type' => 'visa', 'transaction_type' => 'credit'],
+                'AFD MASTERCARD' => ['amount' => $sale->afd_mastercard, 'fee_type' => 'mastercard', 'transaction_type' => 'credit'],
+                'AFD AMEX' => ['amount' => $sale->afd_amex, 'fee_type' => 'amex', 'transaction_type' => 'credit'],
+                'AFD COMMERCIAL' => ['amount' => $sale->afd_commercial, 'fee_type' => null, 'transaction_type' => 'credit'],
+                'AFD UP CREDIT' => ['amount' => $sale->afd_up_credit, 'fee_type' => null, 'transaction_type' => 'credit'],
+                'AFD DISCOVER' => ['amount' => $sale->afd_discover, 'fee_type' => null, 'transaction_type' => 'credit'],
+                'AFD INTERAC' => ['amount' => $sale->afd_interac_debit, 'fee_type' => 'interac', 'transaction_count' => $sale->afd_debit_transaction_count, 'transaction_type' => 'debit'],
             ];
+
+            // Filter payment types based on transaction type selection
+            $paymentTypes = [];
+            foreach ($allPaymentTypes as $type => $data) {
+                if (($includeDebit && $data['transaction_type'] === 'debit') || 
+                    ($includeCredit && $data['transaction_type'] === 'credit')) {
+                    $paymentTypes[$type] = $data;
+                }
+            }
 
             // Add payment amounts (Credit entries) and their corresponding fees
             foreach ($paymentTypes as $type => $data) {
@@ -505,6 +518,8 @@ class DailySaleController extends Controller
             'from_date' => $fromDate,
             'to_date' => $toDate,
             'specific_dates' => $specificDates,
+            'include_debit' => $includeDebit,
+            'include_credit' => $includeCredit,
             'total_entries' => count($settlementData),
         ]);
     }
