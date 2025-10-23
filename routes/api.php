@@ -68,11 +68,13 @@ Route::put('/user/profile', [\App\Http\Controllers\Api\UserController::class, 'u
 
 // Employee routes
 Route::get('/employees/stats', [\App\Http\Controllers\Api\EmployeeController::class, 'stats'])->middleware(['auth:sanctum', 'not.staff']);
+Route::get('/employees/with-hours', [\App\Http\Controllers\Api\EmployeeController::class, 'employeesWithHours'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/employees/earnings', [\App\Http\Controllers\Api\EmployeeController::class, 'earnings'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/employees/pay-days', [\App\Http\Controllers\Api\EmployeeController::class, 'getPayDays'])->middleware(['auth:sanctum', 'not.staff']);
 Route::post('/employees/work-hour-report', [\App\Http\Controllers\Api\EmployeeController::class, 'generateWorkHourReport'])->middleware(['auth:sanctum', 'not.staff']);
 Route::post('/employees/pay-stubs', [\App\Http\Controllers\Api\EmployeeController::class, 'generatePayStubs'])->middleware(['auth:sanctum', 'not.staff']);
 Route::post('/employees/pay-stubs-editable', [\App\Http\Controllers\Api\EmployeeController::class, 'generatePayStubsEditable'])->middleware(['auth:sanctum', 'not.staff']);
+Route::post('/employees/{employee}/resolve-hours', [\App\Http\Controllers\Api\EmployeeController::class, 'resolveHours'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('employees', \App\Http\Controllers\Api\EmployeeController::class)->middleware(['auth:sanctum', 'not.staff']);
 
 // Work Hours routes
