@@ -175,4 +175,62 @@ class LoanController extends Controller
             'message' => 'Loan permanently deleted'
         ]);
     }
+
+    /**
+     * Process a loan payment (deposit or withdrawal).
+     */
+    public function processPayment(Request $request, string $id)
+    {
+        $loan = Loan::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'date' => 'required|date',
+            'amount' => 'required|numeric|min:0.01',
+            'type' => 'required|in:deposit,withdrawal',
+            'notes' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $amount = $request->amount;
+        $type = $request->type;
+        $date = $request->date;
+        $notes = $request->notes ?? '';
+
+        // Update loan amount based on payment type
+        if ($type === 'deposit') {
+            // Deposit reduces the loan amount
+            $loan->amount = max(0, $loan->amount - $amount);
+            $transactionType = 'expense';
+            $description = "Loan payment (deposit) for {$loan->name}";
+        } else {
+            // Withdrawal increases the loan amount
+            $loan->amount = $loan->amount + $amount;
+            $transactionType = 'income';
+            $description = "Loan withdrawal for {$loan->name}";
+        }
+
+        $loan->save();
+
+        // Create corresponding transaction
+        \App\Models\Transaction::create([
+            'date' => $date,
+            'amount' => $amount,
+            'type' => $transactionType,
+            'category' => 'Loan Payment',
+            'description' => $description,
+            'notes' => $notes,
+            'user_id' => auth()->id(),
+        ]);
+
+        return response()->json([
+            'message' => 'Payment processed successfully',
+            'data' => $loan
+        ]);
+    }
 }
