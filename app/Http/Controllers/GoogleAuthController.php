@@ -172,6 +172,9 @@ class GoogleAuthController extends Controller
     {
         try {
             $isAuthenticated = $this->googleDriveService->isAuthenticated();
+
+            //$token = $this->googleDriveService->getStoredAccessToken();
+            //print_r($token);
             
             return response()->json([
                 'success' => true,

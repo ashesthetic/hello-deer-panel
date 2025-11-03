@@ -34,6 +34,7 @@ class GoogleToken extends Model
      */
     public function isExpired(): bool
     {
+        print_r($this->expires_at);
         return $this->expires_at->isPast();
     }
 
