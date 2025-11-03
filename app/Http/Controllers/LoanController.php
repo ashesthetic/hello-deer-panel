@@ -217,16 +217,34 @@ class LoanController extends Controller
 
         $loan->save();
 
+        // Get the primary bank account for the transaction
+        $bankAccount = \App\Models\BankAccount::where('is_active', true)->first();
+        
+        if (!$bankAccount) {
+            return response()->json([
+                'message' => 'No active bank account found for transaction'
+            ], 400);
+        }
+
         // Create corresponding transaction
         \App\Models\Transaction::create([
-            'date' => $date,
+            'transaction_date' => $date,
             'amount' => $amount,
             'type' => $transactionType,
-            'category' => 'Loan Payment',
             'description' => $description,
             'notes' => $notes,
+            'bank_account_id' => $bankAccount->id,
+            'reference_number' => 'LOAN-' . $loan->id . '-' . now()->format('YmdHis'),
+            'status' => 'completed',
             'user_id' => auth()->id(),
         ]);
+
+        // Update bank account balance
+        if ($transactionType === 'income') {
+            $bankAccount->increment('balance', $amount);
+        } else {
+            $bankAccount->decrement('balance', $amount);
+        }
 
         return response()->json([
             'message' => 'Payment processed successfully',
