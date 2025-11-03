@@ -187,6 +187,7 @@ class LoanController extends Controller
             'date' => 'required|date',
             'amount' => 'required|numeric|min:0.01',
             'type' => 'required|in:deposit,withdrawal',
+            'bank_account_id' => 'required|exists:bank_accounts,id',
             'notes' => 'nullable|string',
         ]);
 
@@ -217,14 +218,8 @@ class LoanController extends Controller
 
         $loan->save();
 
-        // Get the primary bank account for the transaction
-        $bankAccount = \App\Models\BankAccount::where('is_active', true)->first();
-        
-        if (!$bankAccount) {
-            return response()->json([
-                'message' => 'No active bank account found for transaction'
-            ], 400);
-        }
+        // Get the specified bank account
+        $bankAccount = \App\Models\BankAccount::findOrFail($request->bank_account_id);
 
         // Create corresponding transaction
         \App\Models\Transaction::create([
