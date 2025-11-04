@@ -152,6 +152,7 @@ Route::delete('/bank-transfers/{id}/cancel', [\App\Http\Controllers\Api\BankTran
 
 // Loan routes (Admin only)
 Route::get('/loans/with-trashed', [\App\Http\Controllers\LoanController::class, 'withTrashed'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/loans/{id}/payment-history', [\App\Http\Controllers\LoanController::class, 'paymentHistory'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::post('/loans/{id}/restore', [\App\Http\Controllers\LoanController::class, 'restore'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::post('/loans/{id}/payment', [\App\Http\Controllers\LoanController::class, 'processPayment'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::delete('/loans/{id}/force-delete', [\App\Http\Controllers\LoanController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
