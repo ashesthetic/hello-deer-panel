@@ -33,9 +33,8 @@ class Owner extends Model
      */
     protected $appends = [
         'total_equity',
-        'total_contributions',
+        'total_investments',
         'total_withdrawals',
-        'total_distributions',
     ];
 
     /**
@@ -59,18 +58,18 @@ class Owner extends Model
      */
     public function getTotalEquityAttribute(): float
     {
-        return $this->equityTransactions()
-            ->selectRaw('SUM(CASE WHEN transaction_type IN ("contribution", "distribution") THEN amount ELSE -amount END) as total')
-            ->value('total') ?? 0.0;
+        $investments = $this->equityTransactions()->where('type', 'investment')->sum('amount');
+        $withdrawals = $this->equityTransactions()->where('type', 'withdrawal')->sum('amount');
+        return $investments - $withdrawals;
     }
 
     /**
-     * Get the total contributions for this owner
+     * Get the total investments for this owner
      */
-    public function getTotalContributionsAttribute(): float
+    public function getTotalInvestmentsAttribute(): float
     {
         return $this->equityTransactions()
-            ->where('transaction_type', 'contribution')
+            ->where('type', 'investment')
             ->sum('amount');
     }
 
@@ -80,17 +79,7 @@ class Owner extends Model
     public function getTotalWithdrawalsAttribute(): float
     {
         return $this->equityTransactions()
-            ->where('transaction_type', 'withdrawal')
-            ->sum('amount');
-    }
-
-    /**
-     * Get the total distributions for this owner
-     */
-    public function getTotalDistributionsAttribute(): float
-    {
-        return $this->equityTransactions()
-            ->where('transaction_type', 'distribution')
+            ->where('type', 'withdrawal')
             ->sum('amount');
     }
 
