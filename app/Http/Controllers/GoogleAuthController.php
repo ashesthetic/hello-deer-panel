@@ -51,38 +51,38 @@ class GoogleAuthController extends Controller
         if ($error) {
             Log::warning('Google OAuth2 authorization denied', ['error' => $error]);
             
-            // Redirect back to the referring page with error
-            return redirect(config('app.frontend_url') . '/accounting/vendor-invoices/add?auth_error=' . urlencode('Authorization denied: ' . $error));
+            // Return HTML with JavaScript redirect
+            return $this->getRedirectHtml('/accounting/vendor-invoices/add?auth_error=' . urlencode('Authorization denied: ' . $error));
         }
 
         if (!$code) {
             $message = 'Authorization code not provided';
-            return redirect(config('app.frontend_url') . '/accounting/vendor-invoices/add?auth_error=' . urlencode($message));
+            return $this->getRedirectHtml('/accounting/vendor-invoices/add?auth_error=' . urlencode($message));
         }
 
         $success = $this->googleDriveService->authenticate($code);
 
         if ($success) {
             // Redirect back to the referring page with success
-            return redirect(config('app.frontend_url') . '/accounting/vendor-invoices/add?auth_success=1');
+            return $this->getRedirectHtml('/accounting/vendor-invoices/add?auth_success=1');
         } else {
-            return redirect(config('app.frontend_url') . '/accounting/vendor-invoices/add?auth_error=' . urlencode('Authentication failed'));
+            return $this->getRedirectHtml('/accounting/vendor-invoices/add?auth_error=' . urlencode('Authentication failed'));
         }
     }
 
     /**
-     * Generate HTML response for OAuth2 callback popup
+     * Generate HTML response with JavaScript redirect
      */
-    private function getCallbackHtml(bool $success, string $message): \Illuminate\Http\Response
+    private function getRedirectHtml(string $path): \Illuminate\Http\Response
     {
-        $statusColor = $success ? '#10B981' : '#EF4444';
-        $statusIcon = $success ? '✅' : '❌';
+        $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+        $redirectUrl = $frontendUrl . $path;
         
         $html = "
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Google Drive Authentication</title>
+            <title>Redirecting...</title>
             <style>
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -96,38 +96,33 @@ class GoogleAuthController extends Controller
                 .container {
                     text-align: center;
                     padding: 2rem;
-                    background: white;
-                    border-radius: 0.5rem;
-                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-                    max-width: 400px;
                 }
-                .status {
-                    font-size: 3rem;
-                    margin-bottom: 1rem;
+                .spinner {
+                    border: 3px solid #f3f3f3;
+                    border-top: 3px solid #3b82f6;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
                 }
                 .message {
-                    color: {$statusColor};
-                    font-size: 1.125rem;
-                    font-weight: 600;
-                    margin-bottom: 1rem;
-                }
-                .close-info {
                     color: #6B7280;
-                    font-size: 0.875rem;
+                    font-size: 1rem;
                 }
             </style>
         </head>
         <body>
             <div class='container'>
-                <div class='status'>{$statusIcon}</div>
-                <div class='message'>{$message}</div>
-                <div class='close-info'>You can close this window now.</div>
+                <div class='spinner'></div>
+                <div class='message'>Redirecting back to application...</div>
             </div>
             <script>
-                // Auto-close the popup after 3 seconds
-                setTimeout(() => {
-                    window.close();
-                }, 3000);
+                window.location.href = '{$redirectUrl}';
             </script>
         </body>
         </html>
