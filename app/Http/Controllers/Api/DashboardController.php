@@ -34,8 +34,14 @@ class DashboardController extends Controller
         // Last week's data
         $lastWeekData = $this->getLastWeekData($user);
 
+        // Current week's data
+        $currentWeekData = $this->getCurrentWeekData($user);
+
         // Last month's performance data
         $lastMonthData = $this->getLastMonthData($user);
+
+        // Current month's data
+        $currentMonthData = $this->getCurrentMonthData($user);
 
         // Last month's income
         $lastMonthIncome = $this->getLastMonthIncome($user);
@@ -48,7 +54,9 @@ class DashboardController extends Controller
             'total_unpaid_invoices' => $totalUnpaidInvoices,
             'yesterday_data' => $yesterdayData,
             'last_week_data' => $lastWeekData,
+            'current_week_data' => $currentWeekData,
             'last_month_data' => $lastMonthData,
+            'current_month_data' => $currentMonthData,
             'last_month_income' => $lastMonthIncome,
             'last_month_expenses' => $lastMonthExpenses,
         ]);
@@ -566,6 +574,152 @@ class DashboardController extends Controller
     }
 
     /**
+     * Get current week's aggregated data
+     */
+    private function getCurrentWeekData($user): array
+    {
+        $currentWeekStart = Carbon::now()->startOfWeek();
+        $currentWeekEnd = Carbon::now()->endOfWeek();
+        
+        $dailySales = DailySale::whereBetween('date', [$currentWeekStart, $currentWeekEnd])->get();
+        $dailyFuels = DailyFuel::whereBetween('date', [$currentWeekStart, $currentWeekEnd])->get();
+
+        if ($dailySales->isEmpty()) {
+            return [
+                'has_data' => false,
+                'period_start' => $currentWeekStart->format('Y-m-d'),
+                'period_end' => $currentWeekEnd->format('Y-m-d'),
+                'formatted_period' => $currentWeekStart->format('M j') . ' - ' . $currentWeekEnd->format('M j, Y'),
+            ];
+        }
+
+        $totalProfit = $dailySales->sum('approximate_profit');
+        $totalSale = $dailySales->sum('reported_total');
+        
+        // Calculate debit (only interac debit)
+        $totalDebit = $dailySales->sum(function ($sale) {
+            return ($sale->pos_interac_debit ?? 0) + ($sale->afd_interac_debit ?? 0);
+        });
+        
+        // Calculate credit (visa, mastercard, amex, commercial, up_credit, discover)
+        $totalCredit = $dailySales->sum(function ($sale) {
+            return ($sale->pos_visa ?? 0) + ($sale->afd_visa ?? 0) +
+                   ($sale->pos_mastercard ?? 0) + ($sale->afd_mastercard ?? 0) +
+                   ($sale->pos_amex ?? 0) + ($sale->afd_amex ?? 0) +
+                   ($sale->pos_commercial ?? 0) + ($sale->afd_commercial ?? 0) +
+                   ($sale->pos_up_credit ?? 0) + ($sale->afd_up_credit ?? 0) +
+                   ($sale->pos_discover ?? 0) + ($sale->afd_discover ?? 0);
+        });
+        
+        $totalCash = $dailySales->sum('cash');
+        $totalSafedrops = $dailySales->sum('safedrops_amount');
+        $totalCashInHand = $dailySales->sum('cash_on_hand');
+        
+        // Calculate fuel data from daily_fuels table
+        $totalFuelLiters = $dailyFuels->sum(function ($fuel) {
+            return ($fuel->regular_quantity ?? 0) + ($fuel->plus_quantity ?? 0) + 
+                   ($fuel->sup_plus_quantity ?? 0) + ($fuel->diesel_quantity ?? 0);
+        });
+        $totalFuelSaleAmount = $dailyFuels->sum(function ($fuel) {
+            return ($fuel->regular_total_sale ?? 0) + ($fuel->plus_total_sale ?? 0) + 
+                   ($fuel->sup_plus_total_sale ?? 0) + ($fuel->diesel_total_sale ?? 0);
+        });
+
+        // Calculate profit breakdown for current week
+        $fuelProfitPercentage = config('profit.fuel_percentage', 4);
+        $totalFuelSale = $dailySales->sum('fuel_sale');
+        $totalFuelProfit = ($totalFuelSale * $fuelProfitPercentage) / 100;
+
+        $tobacco25Percentage = config('profit.tobacco_25_percentage', 8);
+        $totalTobacco25 = $dailySales->sum('tobacco_25');
+        $totalTobacco25Profit = ($totalTobacco25 * $tobacco25Percentage) / 100;
+
+        $tobacco20Percentage = config('profit.tobacco_20_percentage', 8);
+        $totalTobacco20 = $dailySales->sum('tobacco_20');
+        $totalTobacco20Profit = ($totalTobacco20 * $tobacco20Percentage) / 100;
+
+        $lotteryPercentage = config('profit.lottery_percentage', 2);
+        $totalLottery = $dailySales->sum('lottery');
+        $totalLotteryProfit = ($totalLottery * $lotteryPercentage) / 100;
+
+        $prepayPercentage = config('profit.prepay_percentage', 1);
+        $totalPrepay = $dailySales->sum('prepay');
+        $totalPrepayProfit = ($totalPrepay * $prepayPercentage) / 100;
+
+        $storeSalePercentage = config('profit.store_sale_percentage', 50);
+        $totalStoreSaleCalculated = $dailySales->sum('store_sale_calculated');
+        $totalStoreSaleProfit = ($totalStoreSaleCalculated * $storeSalePercentage) / 100;
+
+        return [
+            'has_data' => true,
+            'period_start' => $currentWeekStart->format('Y-m-d'),
+            'period_end' => $currentWeekEnd->format('Y-m-d'),
+            'formatted_period' => $currentWeekStart->format('M j') . ' - ' . $currentWeekEnd->format('M j, Y'),
+            'profit' => $totalProfit,
+            'formatted_profit' => '$' . number_format($totalProfit, 2),
+            'total_sale' => $totalSale,
+            'formatted_total_sale' => '$' . number_format($totalSale, 2),
+            'debit_sale' => $totalDebit,
+            'formatted_debit_sale' => '$' . number_format($totalDebit, 2),
+            'credit_sale' => $totalCredit,
+            'formatted_credit_sale' => '$' . number_format($totalCredit, 2),
+            'cash_sale' => $totalCash,
+            'formatted_cash_sale' => '$' . number_format($totalCash, 2),
+            'safedrops' => $totalSafedrops,
+            'formatted_safedrops' => '$' . number_format($totalSafedrops, 2),
+            'cash_in_hand' => $totalCashInHand,
+            'formatted_cash_in_hand' => '$' . number_format($totalCashInHand, 2),
+            'fuel_sale_liters' => $totalFuelLiters,
+            'fuel_sale_amount' => $totalFuelSaleAmount,
+            'formatted_fuel_sale_amount' => '$' . number_format($totalFuelSaleAmount, 2),
+            'profit_breakdown' => [
+                'fuel' => [
+                    'percentage' => $fuelProfitPercentage,
+                    'amount' => $totalFuelSale,
+                    'formatted_amount' => '$' . number_format($totalFuelSale, 2),
+                    'profit' => $totalFuelProfit,
+                    'formatted_profit' => '$' . number_format($totalFuelProfit, 2),
+                ],
+                'tobacco_25' => [
+                    'percentage' => $tobacco25Percentage,
+                    'amount' => $totalTobacco25,
+                    'formatted_amount' => '$' . number_format($totalTobacco25, 2),
+                    'profit' => $totalTobacco25Profit,
+                    'formatted_profit' => '$' . number_format($totalTobacco25Profit, 2),
+                ],
+                'tobacco_20' => [
+                    'percentage' => $tobacco20Percentage,
+                    'amount' => $totalTobacco20,
+                    'formatted_amount' => '$' . number_format($totalTobacco20, 2),
+                    'profit' => $totalTobacco20Profit,
+                    'formatted_profit' => '$' . number_format($totalTobacco20Profit, 2),
+                ],
+                'lottery' => [
+                    'percentage' => $lotteryPercentage,
+                    'amount' => $totalLottery,
+                    'formatted_amount' => '$' . number_format($totalLottery, 2),
+                    'profit' => $totalLotteryProfit,
+                    'formatted_profit' => '$' . number_format($totalLotteryProfit, 2),
+                ],
+                'prepay' => [
+                    'percentage' => $prepayPercentage,
+                    'amount' => $totalPrepay,
+                    'formatted_amount' => '$' . number_format($totalPrepay, 2),
+                    'profit' => $totalPrepayProfit,
+                    'formatted_profit' => '$' . number_format($totalPrepayProfit, 2),
+                ],
+                'store_sale' => [
+                    'percentage' => $storeSalePercentage,
+                    'amount' => $totalStoreSaleCalculated,
+                    'formatted_amount' => '$' . number_format($totalStoreSaleCalculated, 2),
+                    'profit' => $totalStoreSaleProfit,
+                    'formatted_profit' => '$' . number_format($totalStoreSaleProfit, 2),
+                ],
+            ],
+        ];
+    }
+
+    /**
      * Get last month's aggregated data
      */
     private function getLastMonthData($user): array
@@ -647,6 +801,152 @@ class DashboardController extends Controller
             'period_start' => $lastMonthStart->format('Y-m-d'),
             'period_end' => $lastMonthEnd->format('Y-m-d'),
             'formatted_period' => $lastMonthStart->format('F Y'),
+            'profit' => $totalProfit,
+            'formatted_profit' => '$' . number_format($totalProfit, 2),
+            'total_sale' => $totalSale,
+            'formatted_total_sale' => '$' . number_format($totalSale, 2),
+            'debit_sale' => $totalDebit,
+            'formatted_debit_sale' => '$' . number_format($totalDebit, 2),
+            'credit_sale' => $totalCredit,
+            'formatted_credit_sale' => '$' . number_format($totalCredit, 2),
+            'cash_sale' => $totalCash,
+            'formatted_cash_sale' => '$' . number_format($totalCash, 2),
+            'safedrops' => $totalSafedrops,
+            'formatted_safedrops' => '$' . number_format($totalSafedrops, 2),
+            'cash_in_hand' => $totalCashInHand,
+            'formatted_cash_in_hand' => '$' . number_format($totalCashInHand, 2),
+            'fuel_sale_liters' => $totalFuelLiters,
+            'fuel_sale_amount' => $totalFuelSaleAmount,
+            'formatted_fuel_sale_amount' => '$' . number_format($totalFuelSaleAmount, 2),
+            'profit_breakdown' => [
+                'fuel' => [
+                    'percentage' => $fuelProfitPercentage,
+                    'amount' => $totalFuelSale,
+                    'formatted_amount' => '$' . number_format($totalFuelSale, 2),
+                    'profit' => $totalFuelProfit,
+                    'formatted_profit' => '$' . number_format($totalFuelProfit, 2),
+                ],
+                'tobacco_25' => [
+                    'percentage' => $tobacco25Percentage,
+                    'amount' => $totalTobacco25,
+                    'formatted_amount' => '$' . number_format($totalTobacco25, 2),
+                    'profit' => $totalTobacco25Profit,
+                    'formatted_profit' => '$' . number_format($totalTobacco25Profit, 2),
+                ],
+                'tobacco_20' => [
+                    'percentage' => $tobacco20Percentage,
+                    'amount' => $totalTobacco20,
+                    'formatted_amount' => '$' . number_format($totalTobacco20, 2),
+                    'profit' => $totalTobacco20Profit,
+                    'formatted_profit' => '$' . number_format($totalTobacco20Profit, 2),
+                ],
+                'lottery' => [
+                    'percentage' => $lotteryPercentage,
+                    'amount' => $totalLottery,
+                    'formatted_amount' => '$' . number_format($totalLottery, 2),
+                    'profit' => $totalLotteryProfit,
+                    'formatted_profit' => '$' . number_format($totalLotteryProfit, 2),
+                ],
+                'prepay' => [
+                    'percentage' => $prepayPercentage,
+                    'amount' => $totalPrepay,
+                    'formatted_amount' => '$' . number_format($totalPrepay, 2),
+                    'profit' => $totalPrepayProfit,
+                    'formatted_profit' => '$' . number_format($totalPrepayProfit, 2),
+                ],
+                'store_sale' => [
+                    'percentage' => $storeSalePercentage,
+                    'amount' => $totalStoreSaleCalculated,
+                    'formatted_amount' => '$' . number_format($totalStoreSaleCalculated, 2),
+                    'profit' => $totalStoreSaleProfit,
+                    'formatted_profit' => '$' . number_format($totalStoreSaleProfit, 2),
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Get current month's aggregated data
+     */
+    private function getCurrentMonthData($user): array
+    {
+        $currentMonthStart = Carbon::now()->startOfMonth();
+        $currentMonthEnd = Carbon::now()->endOfMonth();
+        
+        $dailySales = DailySale::whereBetween('date', [$currentMonthStart, $currentMonthEnd])->get();
+        $dailyFuels = DailyFuel::whereBetween('date', [$currentMonthStart, $currentMonthEnd])->get();
+
+        if ($dailySales->isEmpty()) {
+            return [
+                'has_data' => false,
+                'period_start' => $currentMonthStart->format('Y-m-d'),
+                'period_end' => $currentMonthEnd->format('Y-m-d'),
+                'formatted_period' => $currentMonthStart->format('F Y'),
+            ];
+        }
+
+        $totalProfit = $dailySales->sum('approximate_profit');
+        $totalSale = $dailySales->sum('reported_total');
+        
+        // Calculate debit (only interac debit)
+        $totalDebit = $dailySales->sum(function ($sale) {
+            return ($sale->pos_interac_debit ?? 0) + ($sale->afd_interac_debit ?? 0);
+        });
+        
+        // Calculate credit (visa, mastercard, amex, commercial, up_credit, discover)
+        $totalCredit = $dailySales->sum(function ($sale) {
+            return ($sale->pos_visa ?? 0) + ($sale->afd_visa ?? 0) +
+                   ($sale->pos_mastercard ?? 0) + ($sale->afd_mastercard ?? 0) +
+                   ($sale->pos_amex ?? 0) + ($sale->afd_amex ?? 0) +
+                   ($sale->pos_commercial ?? 0) + ($sale->afd_commercial ?? 0) +
+                   ($sale->pos_up_credit ?? 0) + ($sale->afd_up_credit ?? 0) +
+                   ($sale->pos_discover ?? 0) + ($sale->afd_discover ?? 0);
+        });
+        
+        $totalCash = $dailySales->sum('cash');
+        $totalSafedrops = $dailySales->sum('safedrops_amount');
+        $totalCashInHand = $dailySales->sum('cash_on_hand');
+        
+        // Calculate fuel data from daily_fuels table
+        $totalFuelLiters = $dailyFuels->sum(function ($fuel) {
+            return ($fuel->regular_quantity ?? 0) + ($fuel->plus_quantity ?? 0) + 
+                   ($fuel->sup_plus_quantity ?? 0) + ($fuel->diesel_quantity ?? 0);
+        });
+        $totalFuelSaleAmount = $dailyFuels->sum(function ($fuel) {
+            return ($fuel->regular_total_sale ?? 0) + ($fuel->plus_total_sale ?? 0) + 
+                   ($fuel->sup_plus_total_sale ?? 0) + ($fuel->diesel_total_sale ?? 0);
+        });
+
+        // Calculate profit breakdown for current month
+        $fuelProfitPercentage = config('profit.fuel_percentage', 4);
+        $totalFuelSale = $dailySales->sum('fuel_sale');
+        $totalFuelProfit = ($totalFuelSale * $fuelProfitPercentage) / 100;
+
+        $tobacco25Percentage = config('profit.tobacco_25_percentage', 8);
+        $totalTobacco25 = $dailySales->sum('tobacco_25');
+        $totalTobacco25Profit = ($totalTobacco25 * $tobacco25Percentage) / 100;
+
+        $tobacco20Percentage = config('profit.tobacco_20_percentage', 8);
+        $totalTobacco20 = $dailySales->sum('tobacco_20');
+        $totalTobacco20Profit = ($totalTobacco20 * $tobacco20Percentage) / 100;
+
+        $lotteryPercentage = config('profit.lottery_percentage', 2);
+        $totalLottery = $dailySales->sum('lottery');
+        $totalLotteryProfit = ($totalLottery * $lotteryPercentage) / 100;
+
+        $prepayPercentage = config('profit.prepay_percentage', 1);
+        $totalPrepay = $dailySales->sum('prepay');
+        $totalPrepayProfit = ($totalPrepay * $prepayPercentage) / 100;
+
+        $storeSalePercentage = config('profit.store_sale_percentage', 50);
+        $totalStoreSaleCalculated = $dailySales->sum('store_sale_calculated');
+        $totalStoreSaleProfit = ($totalStoreSaleCalculated * $storeSalePercentage) / 100;
+
+        return [
+            'has_data' => true,
+            'period_start' => $currentMonthStart->format('Y-m-d'),
+            'period_end' => $currentMonthEnd->format('Y-m-d'),
+            'formatted_period' => $currentMonthStart->format('F Y'),
             'profit' => $totalProfit,
             'formatted_profit' => '$' . number_format($totalProfit, 2),
             'total_sale' => $totalSale,
