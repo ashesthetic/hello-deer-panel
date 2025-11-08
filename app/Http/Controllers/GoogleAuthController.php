@@ -51,51 +51,22 @@ class GoogleAuthController extends Controller
         if ($error) {
             Log::warning('Google OAuth2 authorization denied', ['error' => $error]);
             
-            // If this is a web request, return a simple HTML page
-            if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Authorization denied: ' . $error
-                ], 400);
-            } else {
-                return $this->getCallbackHtml(false, 'Authorization denied: ' . $error);
-            }
+            // Redirect back to the referring page with error
+            return redirect(config('app.frontend_url') . '/accounting/vendor-invoices/add?auth_error=' . urlencode('Authorization denied: ' . $error));
         }
 
         if (!$code) {
             $message = 'Authorization code not provided';
-            
-            if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
-                return response()->json([
-                    'success' => false,
-                    'message' => $message
-                ], 400);
-            } else {
-                return $this->getCallbackHtml(false, $message);
-            }
+            return redirect(config('app.frontend_url') . '/accounting/vendor-invoices/add?auth_error=' . urlencode($message));
         }
 
         $success = $this->googleDriveService->authenticate($code);
 
-        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
-            if ($success) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Google Drive authentication successful'
-                ]);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Authentication failed'
-                ], 400);
-            }
+        if ($success) {
+            // Redirect back to the referring page with success
+            return redirect(config('app.frontend_url') . '/accounting/vendor-invoices/add?auth_success=1');
         } else {
-            // Return HTML response for popup window
-            if ($success) {
-                return $this->getCallbackHtml(true, 'Google Drive authentication successful');
-            } else {
-                return $this->getCallbackHtml(false, 'Authentication failed');
-            }
+            return redirect(config('app.frontend_url') . '/accounting/vendor-invoices/add?auth_error=' . urlencode('Authentication failed'));
         }
     }
 
