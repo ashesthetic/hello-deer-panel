@@ -14,30 +14,16 @@ use Illuminate\Validation\Rule;
 class SafedropResolutionController extends Controller
 {
     /**
-     * Get or create the Cash account for safedrop transfers
+     * Get the Cash account for safedrop transfers
      */
     private function getCashAccount()
     {
-        // Try to find existing Cash account
-        $cashAccount = BankAccount::where('account_name', 'Cash')
-            ->where('bank_name', 'Cash on Hand')
+        // Find existing Cash account by name (case-insensitive)
+        $cashAccount = BankAccount::whereRaw('LOWER(account_name) = ?', ['cash'])
             ->first();
         
         if (!$cashAccount) {
-            // Create Cash account if it doesn't exist
-            $adminUser = \App\Models\User::where('role', 'Admin')->first();
-            
-            $cashAccount = BankAccount::create([
-                'bank_name' => 'Cash on Hand',
-                'account_name' => 'Cash',
-                'account_number' => 'CASH-001',
-                'account_type' => 'Business',
-                'currency' => 'CAD',
-                'balance' => 0,
-                'is_active' => true,
-                'notes' => 'Virtual account for tracking cash safedrops and cash in hand',
-                'user_id' => $adminUser->id,
-            ]);
+            throw new \Exception('Cash account not found. Please create a bank account with name "Cash".');
         }
         
         return $cashAccount;
