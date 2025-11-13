@@ -164,32 +164,43 @@ class SafedropResolutionController extends Controller
                     'notes' => $resolution['notes'] ?? null
                 ]);
                 
-                // Update bank account balance
-                $bankAccount->increment('balance', $resolution['amount']);
+                // Check if resolving to Cash account itself
+                $isCashAccount = $bankAccount->id === $cashAccount->id;
                 
-                // Create Transfer transaction from Cash to Bank Account
-                $transactionDescription = $type === 'safedrops' 
-                    ? "Safedrop resolution for {$dailySale->date}"
-                    : "Cash in hand resolution for {$dailySale->date}";
-                
-                if ($resolution['notes']) {
-                    $transactionDescription .= " - {$resolution['notes']}";
+                if ($isCashAccount) {
+                    // Resolving to Cash account - just increment Cash balance
+                    // No need for transfer transaction since money is already in Cash
+                    $cashAccount->increment('balance', $resolution['amount']);
+                } else {
+                    // Resolving to a different bank account - create transfer
+                    
+                    // Update target bank account balance
+                    $bankAccount->increment('balance', $resolution['amount']);
+                    
+                    // Create Transfer transaction from Cash to Bank Account
+                    $transactionDescription = $type === 'safedrops' 
+                        ? "Safedrop resolution for {$dailySale->date}"
+                        : "Cash in hand resolution for {$dailySale->date}";
+                    
+                    if ($resolution['notes']) {
+                        $transactionDescription .= " - {$resolution['notes']}";
+                    }
+                    
+                    $transaction = Transaction::create([
+                        'type' => 'transfer',
+                        'amount' => $resolution['amount'],
+                        'description' => $transactionDescription,
+                        'from_bank_account_id' => $cashAccount->id,
+                        'to_bank_account_id' => $bankAccount->id,
+                        'transaction_date' => now()->toDateString(),
+                        'reference_number' => 'SR-' . $safedropResolution->id,
+                        'status' => 'completed',
+                        'user_id' => $user->id,
+                    ]);
+                    
+                    // Update cash account balance (decrease)
+                    $cashAccount->decrement('balance', $resolution['amount']);
                 }
-                
-                $transaction = Transaction::create([
-                    'type' => 'transfer',
-                    'amount' => $resolution['amount'],
-                    'description' => $transactionDescription,
-                    'from_bank_account_id' => $cashAccount->id,
-                    'to_bank_account_id' => $bankAccount->id,
-                    'transaction_date' => now()->toDateString(),
-                    'reference_number' => 'SR-' . $safedropResolution->id,
-                    'status' => 'completed',
-                    'user_id' => $user->id,
-                ]);
-                
-                // Update cash account balance (decrease)
-                $cashAccount->decrement('balance', $resolution['amount']);
                 
                 $createdResolutions[] = $safedropResolution->load(['bankAccount', 'user']);
             }
@@ -245,24 +256,34 @@ class SafedropResolutionController extends Controller
         try {
             DB::beginTransaction();
             
-            // Find and delete the associated transaction
-            $transaction = Transaction::where('reference_number', 'SR-' . $safedropResolution->id)
-                ->where('type', 'transfer')
-                ->first();
+            // Get the cash account
+            $cashAccount = $this->getCashAccount();
             
-            if ($transaction) {
-                // Get the cash account
-                $cashAccount = $this->getCashAccount();
+            // Check if resolution was to Cash account itself
+            $isCashAccount = $safedropResolution->bank_account_id === $cashAccount->id;
+            
+            if ($isCashAccount) {
+                // Resolution was to Cash account - just decrement Cash balance
+                $cashAccount->decrement('balance', $safedropResolution->amount);
+            } else {
+                // Resolution was to a different bank account - reverse the transfer
                 
-                // Reverse the cash account balance (increase it back)
-                $cashAccount->increment('balance', $safedropResolution->amount);
+                // Find and delete the associated transaction
+                $transaction = Transaction::where('reference_number', 'SR-' . $safedropResolution->id)
+                    ->where('type', 'transfer')
+                    ->first();
                 
-                // Delete the transaction
-                $transaction->delete();
+                if ($transaction) {
+                    // Reverse the cash account balance (increase it back)
+                    $cashAccount->increment('balance', $safedropResolution->amount);
+                    
+                    // Delete the transaction
+                    $transaction->delete();
+                }
+                
+                // Reverse the bank account balance change
+                $safedropResolution->bankAccount->decrement('balance', $safedropResolution->amount);
             }
-            
-            // Reverse the bank account balance change
-            $safedropResolution->bankAccount->decrement('balance', $safedropResolution->amount);
             
             // Delete the resolution
             $safedropResolution->delete();
