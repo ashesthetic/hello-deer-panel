@@ -55,6 +55,7 @@ class PayrollController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'pay_date' => 'required|date',
+            'pay_period' => 'nullable|string|max:255',
             'employee_id' => 'required|exists:users,id',
             'regular_hours' => 'nullable|numeric|min:0',
             'regular_rate' => 'nullable|numeric|min:0',
@@ -123,6 +124,7 @@ class PayrollController extends Controller
 
         $validator = Validator::make($request->all(), [
             'pay_date' => 'sometimes|required|date',
+            'pay_period' => 'nullable|string|max:255',
             'employee_id' => 'sometimes|required|exists:users,id',
             'regular_hours' => 'nullable|numeric|min:0',
             'regular_rate' => 'nullable|numeric|min:0',
