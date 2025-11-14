@@ -10,14 +10,6 @@ use Illuminate\Support\Facades\Validator;
 class PayrollController extends Controller
 {
     /**
-     * Constructor - Apply CheckNotStaff middleware to all methods.
-     */
-    public function __construct()
-    {
-        $this->middleware('check.not.staff');
-    }
-
-    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
@@ -56,7 +48,7 @@ class PayrollController extends Controller
         $validator = Validator::make($request->all(), [
             'pay_date' => 'required|date',
             'pay_period' => 'nullable|string|max:255',
-            'employee_id' => 'required|exists:users,id',
+            'employee_id' => 'required|exists:employees,id',
             'regular_hours' => 'nullable|numeric|min:0',
             'regular_rate' => 'nullable|numeric|min:0',
             'regular_current' => 'nullable|numeric|min:0',
@@ -100,6 +92,66 @@ class PayrollController extends Controller
         return response()->json([
             'message' => 'Payroll created successfully',
             'data' => $payroll->load('employee')
+        ], 201);
+    }
+
+    /**
+     * Store multiple payroll records at once.
+     */
+    public function bulkStore(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'payrolls' => 'required|array|min:1',
+            'payrolls.*.pay_date' => 'required|date',
+            'payrolls.*.pay_period' => 'nullable|string|max:255',
+            'payrolls.*.employee_id' => 'required|exists:employees,id',
+            'payrolls.*.regular_hours' => 'nullable|numeric|min:0',
+            'payrolls.*.regular_rate' => 'nullable|numeric|min:0',
+            'payrolls.*.regular_current' => 'nullable|numeric|min:0',
+            'payrolls.*.regular_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.stat_hours' => 'nullable|numeric|min:0',
+            'payrolls.*.stat_rate' => 'nullable|numeric|min:0',
+            'payrolls.*.stat_current' => 'nullable|numeric|min:0',
+            'payrolls.*.stat_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.overtime_hours' => 'nullable|numeric|min:0',
+            'payrolls.*.overtime_rate' => 'nullable|numeric|min:0',
+            'payrolls.*.overtime_current' => 'nullable|numeric|min:0',
+            'payrolls.*.overtime_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.total_hours' => 'nullable|numeric|min:0',
+            'payrolls.*.total_current' => 'nullable|numeric|min:0',
+            'payrolls.*.total_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.cpp_emp_current' => 'nullable|numeric|min:0',
+            'payrolls.*.cpp_emp_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.ei_emp_current' => 'nullable|numeric|min:0',
+            'payrolls.*.ei_emp_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.fit_current' => 'nullable|numeric|min:0',
+            'payrolls.*.fit_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.total_deduction_current' => 'nullable|numeric|min:0',
+            'payrolls.*.total_deduction_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.vac_earned_current' => 'nullable|numeric|min:0',
+            'payrolls.*.vac_earned_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.vac_paid_current' => 'nullable|numeric|min:0',
+            'payrolls.*.vac_paid_ytd' => 'nullable|numeric|min:0',
+            'payrolls.*.net_pay' => 'nullable|numeric|min:0',
+            'payrolls.*.payment_date' => 'nullable|date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $created = [];
+        foreach ($request->input('payrolls') as $payrollData) {
+            $payroll = Payroll::create($payrollData);
+            $created[] = $payroll->load('employee');
+        }
+
+        return response()->json([
+            'message' => count($created) . ' payroll record(s) created successfully',
+            'data' => $created
         ], 201);
     }
 

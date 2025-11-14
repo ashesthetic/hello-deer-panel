@@ -173,8 +173,18 @@ Route::delete('/loans/{id}/force-delete', [\App\Http\Controllers\LoanController:
 Route::apiResource('loans', \App\Http\Controllers\LoanController::class)->middleware(['auth:sanctum', 'can.manage.users']);
 
 // Payroll routes (Admin only - Staff has no access)
+Route::post('/payrolls/bulk', [\App\Http\Controllers\PayrollController::class, 'bulkStore'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::get('/payrolls/with-trashed', [\App\Http\Controllers\PayrollController::class, 'withTrashed'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::get('/payrolls/{employeeId}/summary', [\App\Http\Controllers\PayrollController::class, 'summaryByEmployee'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::post('/payrolls/{id}/restore', [\App\Http\Controllers\PayrollController::class, 'restore'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::delete('/payrolls/{id}/force-delete', [\App\Http\Controllers\PayrollController::class, 'forceDelete'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::apiResource('payrolls', \App\Http\Controllers\PayrollController::class)->middleware(['auth:sanctum', 'check.not.staff']);
+
+// Payroll Report routes (Admin only - Staff has no access)
+Route::get('/payroll-reports', [\App\Http\Controllers\PayrollReportController::class, 'index'])->middleware(['auth:sanctum', 'check.not.staff']);
+Route::post('/payroll-reports/upload', [\App\Http\Controllers\PayrollReportController::class, 'upload'])->middleware(['auth:sanctum', 'check.not.staff']);
+Route::post('/payroll-reports/match-employees', [\App\Http\Controllers\PayrollReportController::class, 'matchEmployees'])->middleware(['auth:sanctum', 'check.not.staff']);
+Route::get('/payroll-reports/{id}', [\App\Http\Controllers\PayrollReportController::class, 'show'])->middleware(['auth:sanctum', 'check.not.staff']);
+Route::post('/payroll-reports/{id}/process', [\App\Http\Controllers\PayrollReportController::class, 'process'])->middleware(['auth:sanctum', 'check.not.staff']);
+Route::delete('/payroll-reports/{id}', [\App\Http\Controllers\PayrollReportController::class, 'destroy'])->middleware(['auth:sanctum', 'check.not.staff']);
+
