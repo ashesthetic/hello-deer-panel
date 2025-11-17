@@ -172,6 +172,10 @@ Route::post('/loans/{id}/payment', [\App\Http\Controllers\LoanController::class,
 Route::delete('/loans/{id}/force-delete', [\App\Http\Controllers\LoanController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('loans', \App\Http\Controllers\LoanController::class)->middleware(['auth:sanctum', 'can.manage.users']);
 
+// Staff Pay Stubs routes (Staff can view their own pay stubs)
+Route::get('/staff/pay-stubs', [\App\Http\Controllers\PayrollController::class, 'myPayStubs'])->middleware(['auth:sanctum']);
+Route::get('/staff/pay-stubs/{id}', [\App\Http\Controllers\PayrollController::class, 'myPayStub'])->middleware(['auth:sanctum']);
+
 // Payroll routes (Admin only - Staff has no access)
 Route::post('/payrolls/bulk', [\App\Http\Controllers\PayrollController::class, 'bulkStore'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::get('/payrolls/with-trashed', [\App\Http\Controllers\PayrollController::class, 'withTrashed'])->middleware(['auth:sanctum', 'check.not.staff']);

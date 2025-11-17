@@ -397,4 +397,90 @@ class PayrollController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Get pay stubs for the authenticated staff member
+     */
+    public function myPayStubs(Request $request)
+    {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        // Get the employee record associated with this user
+        $employee = Employee::where('email', $user->email)->first();
+        
+        if (!$employee) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No employee record found'
+            ], 404);
+        }
+
+        $perPage = $request->input('per_page', 10);
+        $sortBy = $request->input('sort_by', 'pay_date');
+        $sortDirection = $request->input('sort_direction', 'desc');
+        
+        $query = Payroll::with('employee')
+            ->where('employee_id', $employee->id);
+        
+        $allowedSortFields = ['id', 'pay_date', 'net_pay', 'payment_date', 'created_at'];
+        if (!in_array($sortBy, $allowedSortFields)) {
+            $sortBy = 'pay_date';
+        }
+        
+        $query->orderBy($sortBy, $sortDirection);
+        
+        $payrolls = $query->paginate($perPage);
+        
+        return response()->json($payrolls);
+    }
+
+    /**
+     * Get a specific pay stub for the authenticated staff member
+     */
+    public function myPayStub(string $id)
+    {
+        $user = auth()->user();
+        
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 401);
+        }
+
+        // Get the employee record associated with this user
+        $employee = Employee::where('email', $user->email)->first();
+        
+        if (!$employee) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No employee record found'
+            ], 404);
+        }
+
+        // Get the payroll record, but only if it belongs to this employee
+        $payroll = Payroll::with('employee')
+            ->where('id', $id)
+            ->where('employee_id', $employee->id)
+            ->first();
+
+        if (!$payroll) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pay stub not found'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $payroll
+        ]);
+    }
 }
