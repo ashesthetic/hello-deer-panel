@@ -178,6 +178,7 @@ Route::get('/payrolls/with-trashed', [\App\Http\Controllers\PayrollController::c
 Route::get('/payrolls/{employeeId}/summary', [\App\Http\Controllers\PayrollController::class, 'summaryByEmployee'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::post('/payrolls/{id}/restore', [\App\Http\Controllers\PayrollController::class, 'restore'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::delete('/payrolls/{id}/force-delete', [\App\Http\Controllers\PayrollController::class, 'forceDelete'])->middleware(['auth:sanctum', 'check.not.staff']);
+Route::post('/payrolls/{id}/email', [\App\Http\Controllers\PayrollController::class, 'emailPayStub'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::apiResource('payrolls', \App\Http\Controllers\PayrollController::class)->middleware(['auth:sanctum', 'check.not.staff']);
 
 // Payroll Report routes (Admin only - Staff has no access)
