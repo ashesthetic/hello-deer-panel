@@ -207,3 +207,10 @@ Route::delete('/smokes/{id}/force-delete', [\App\Http\Controllers\SmokesControll
 Route::delete('/smokes/{id}', [\App\Http\Controllers\SmokesController::class, 'destroy'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('smokes', \App\Http\Controllers\SmokesController::class)->except(['destroy'])->middleware(['auth:sanctum']);
 
+// Lottery routes (Admin has full access, Staff can add/edit only)
+Route::get('/lottery/with-trashed', [\App\Http\Controllers\LotteryController::class, 'withTrashed'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::post('/lottery/{id}/restore', [\App\Http\Controllers\LotteryController::class, 'restore'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('/lottery/{id}/force-delete', [\App\Http\Controllers\LotteryController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('/lottery/{id}', [\App\Http\Controllers\LotteryController::class, 'destroy'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::apiResource('lottery', \App\Http\Controllers\LotteryController::class)->except(['destroy'])->middleware(['auth:sanctum']);
+
