@@ -193,3 +193,17 @@ Route::get('/payroll-reports/{id}', [\App\Http\Controllers\PayrollReportControll
 Route::post('/payroll-reports/{id}/process', [\App\Http\Controllers\PayrollReportController::class, 'process'])->middleware(['auth:sanctum', 'check.not.staff']);
 Route::delete('/payroll-reports/{id}', [\App\Http\Controllers\PayrollReportController::class, 'destroy'])->middleware(['auth:sanctum', 'check.not.staff']);
 
+// Smokes Category routes (Admin has full access, Staff can add/edit only)
+Route::get('/smokes-categories/with-trashed', [\App\Http\Controllers\SmokesCategoryController::class, 'withTrashed'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::post('/smokes-categories/{id}/restore', [\App\Http\Controllers\SmokesCategoryController::class, 'restore'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('/smokes-categories/{id}/force-delete', [\App\Http\Controllers\SmokesCategoryController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('/smokes-categories/{id}', [\App\Http\Controllers\SmokesCategoryController::class, 'destroy'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::apiResource('smokes-categories', \App\Http\Controllers\SmokesCategoryController::class)->except(['destroy'])->middleware(['auth:sanctum']);
+
+// Smokes routes (Admin has full access, Staff can add/edit only)
+Route::get('/smokes/with-trashed', [\App\Http\Controllers\SmokesController::class, 'withTrashed'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::post('/smokes/{id}/restore', [\App\Http\Controllers\SmokesController::class, 'restore'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('/smokes/{id}/force-delete', [\App\Http\Controllers\SmokesController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('/smokes/{id}', [\App\Http\Controllers\SmokesController::class, 'destroy'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::apiResource('smokes', \App\Http\Controllers\SmokesController::class)->except(['destroy'])->middleware(['auth:sanctum']);
+
