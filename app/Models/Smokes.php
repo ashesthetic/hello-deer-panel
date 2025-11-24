@@ -12,7 +12,6 @@ class Smokes extends Model
     protected $fillable = [
         'date',
         'item',
-        'shift',
         'start',
         'end',
         'added',
