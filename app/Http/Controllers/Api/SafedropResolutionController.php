@@ -182,7 +182,7 @@ class SafedropResolutionController extends Controller
                         ? "Safedrop resolution for {$dailySale->date}"
                         : "Cash in hand resolution for {$dailySale->date}";
                     
-                    if ($resolution['notes']) {
+                    if (!empty($resolution['notes'])) {
                         $transactionDescription .= " - {$resolution['notes']}";
                     }
                     
