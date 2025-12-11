@@ -511,9 +511,11 @@ class EmployeeController extends Controller
         $payDay = TimezoneUtil::parse($request->pay_day);
         $employeeIds = $request->employee_ids;
         
-        // Calculate work period for the selected pay day
-        $periodStart = $payDay->copy()->subDays(20);
-        $periodEnd = $payDay->copy()->subDays(7);
+        // Calculate work period for the selected pay day (2 weeks: Thursday to Wednesday)
+        // Period ends 8 days before pay day (Wednesday)
+        // Period starts 21 days before pay day (Thursday, 2 weeks prior to period end)
+        $periodEnd = $payDay->copy()->subDays(8);
+        $periodStart = $payDay->copy()->subDays(21);
         
         // Get selected employees
         $employees = Employee::whereIn('id', $employeeIds)->get();
@@ -586,9 +588,11 @@ class EmployeeController extends Controller
         $payDay = TimezoneUtil::parse($request->pay_day);
         $employeeIds = $request->employee_ids;
         
-        // Calculate work period for the selected pay day
-        $periodStart = $payDay->copy()->subDays(20);
-        $periodEnd = $payDay->copy()->subDays(7);
+        // Calculate work period for the selected pay day (2 weeks: Thursday to Wednesday)
+        // Period ends 8 days before pay day (Wednesday)
+        // Period starts 21 days before pay day (Thursday, 2 weeks prior to period end)
+        $periodEnd = $payDay->copy()->subDays(8);
+        $periodStart = $payDay->copy()->subDays(21);
         
         // Get selected employees
         $employees = Employee::whereIn('id', $employeeIds)->get();
