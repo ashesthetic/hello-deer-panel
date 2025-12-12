@@ -147,6 +147,13 @@ Route::post('/file-imports/upload', [\App\Http\Controllers\Api\FileImportControl
 Route::get('/file-imports/stats', [\App\Http\Controllers\Api\FileImportController::class, 'stats'])->middleware('auth:sanctum');
 Route::apiResource('file-imports', \App\Http\Controllers\Api\FileImportController::class)->middleware('auth:sanctum');
 
+// SFT Upload routes (All authenticated users including Staff)
+Route::post('/sft-uploads/upload', [\App\Http\Controllers\Api\SftUploadController::class, 'upload'])->middleware('auth:sanctum');
+Route::get('/sft-uploads/stats', [\App\Http\Controllers\Api\SftUploadController::class, 'stats'])->middleware('auth:sanctum');
+Route::get('/sft-uploads/{sftUpload}/extract-files', [\App\Http\Controllers\Api\SftUploadController::class, 'extractAndListFiles'])->middleware(['auth:sanctum', 'not.staff']);
+Route::post('/sft-uploads/{sftUpload}/import-files', [\App\Http\Controllers\Api\SftUploadController::class, 'importSftFiles'])->middleware(['auth:sanctum', 'not.staff']);
+Route::apiResource('sft-uploads', \App\Http\Controllers\Api\SftUploadController::class)->middleware('auth:sanctum');
+
 // SFT Processing routes (Admin only)
 Route::post('/sft-processor/process-sales-data', [\App\Http\Controllers\Api\SftProcessorController::class, 'processSalesData'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/sft-processor/available-dates', [\App\Http\Controllers\Api\SftProcessorController::class, 'getAvailableImportDates'])->middleware(['auth:sanctum', 'not.staff']);
