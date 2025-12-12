@@ -220,3 +220,7 @@ Route::delete('/lottery/{id}/force-delete', [\App\Http\Controllers\LotteryContro
 Route::delete('/lottery/{id}', [\App\Http\Controllers\LotteryController::class, 'destroy'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('lottery', \App\Http\Controllers\LotteryController::class)->except(['destroy'])->middleware(['auth:sanctum']);
 
+// Facebook routes
+Route::post('/facebook/post-fuel-prices', [\App\Http\Controllers\Api\FacebookController::class, 'postFuelPrices'])->middleware('auth:sanctum');
+Route::get('/facebook/test-connection', [\App\Http\Controllers\Api\FacebookController::class, 'testConnection'])->middleware('auth:sanctum');
+
