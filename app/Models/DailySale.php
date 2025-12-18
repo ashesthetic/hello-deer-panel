@@ -18,6 +18,7 @@ class DailySale extends Model
         'cash',
         'coupon',
         'delivery',
+        'reported_total',
         'notes',
     ];
 
@@ -30,6 +31,7 @@ class DailySale extends Model
         'cash' => 'decimal:2',
         'coupon' => 'decimal:2',
         'delivery' => 'decimal:2',
+        'reported_total' => 'decimal:2',
     ];
 
     // Calculate total product sale
