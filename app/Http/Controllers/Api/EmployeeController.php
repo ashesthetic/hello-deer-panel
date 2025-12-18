@@ -469,4 +469,373 @@ class EmployeeController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Generate pay stubs with calculations
+     */
+    public function generatePayStubs(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'pay_day' => 'required|date',
+            'employee_ids' => 'required|array',
+            'employee_ids.*' => 'exists:employees,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $payDay = TimezoneUtil::parse($request->pay_day);
+        $employeeIds = $request->employee_ids;
+        
+        // Calculate work period for the selected pay day
+        $periodStart = $payDay->copy()->subDays(20);
+        $periodEnd = $payDay->copy()->subDays(7);
+        
+        // Get selected employees
+        $employees = Employee::whereIn('id', $employeeIds)->get();
+        
+        $payStubsData = [];
+        
+        foreach ($employees as $employee) {
+            // Get work hours for the period
+            $workHours = $employee->workHours()
+                ->whereBetween('date', [$periodStart->format('Y-m-d'), $periodEnd->format('Y-m-d')])
+                ->get();
+            
+            $totalHours = $workHours->sum('total_hours');
+            $hourlyRate = $employee->hourly_rate;
+            
+            // Calculate earnings
+            $regularHours = min($totalHours, 80); // Assuming 80 hours per pay period (40 hours/week * 2 weeks)
+            $overtimeHours = max(0, $totalHours - 80);
+            $regularPay = $regularHours * $hourlyRate;
+            $overtimePay = $overtimeHours * ($hourlyRate * 1.5); // 1.5x for overtime
+            
+            // Stat holiday and vacation calculations (simplified)
+            $statHolidayHours = 0; // This would be calculated based on actual stat holidays
+            $statHolidayPay = $statHolidayHours * $hourlyRate;
+            
+            $vacationPay = ($regularPay + $overtimePay) * 0.04; // 4% vacation pay
+            $vacationPaid = 0; // This would be tracked separately
+            
+            $totalEarnings = $regularPay + $overtimePay + $statHolidayPay + $vacationPay;
+            
+            // Calculate YTD totals (simplified - would need to track this in database)
+            $ytdEarnings = $totalEarnings * 26; // Assuming 26 pay periods per year
+            $ytdCPP = 0;
+            $ytdEI = 0;
+            $ytdFederalTax = 0;
+            
+            // Calculate deductions
+            $cppRate = 0.0595; // 5.95%
+            $cppBasicExemption = 3500;
+            $cppMaxEarnings = 68500;
+            $cppContribution = min(max(0, $totalEarnings - ($cppBasicExemption / 26)), $cppMaxEarnings / 26) * $cppRate;
+            
+            $eiRate = 0.0166; // 1.66%
+            $eiMaxInsurableEarnings = 63200;
+            $eiContribution = min($totalEarnings, $eiMaxInsurableEarnings / 26) * $eiRate;
+            
+            // Federal income tax (simplified calculation)
+            $federalTax = $this->calculateFederalTax($totalEarnings * 26); // Annualized for tax calculation
+            $federalTaxPerPeriod = $federalTax / 26;
+            
+            $totalDeductions = $cppContribution + $eiContribution + $federalTaxPerPeriod;
+            $netPay = $totalEarnings - $totalDeductions;
+            
+            // Vacation summary
+            $vacationEarned = $totalEarnings * 0.04; // 4% of earnings
+            $vacationPaid = 0; // Would be tracked separately
+            
+            $payStubsData[] = [
+                'employee_id' => $employee->id,
+                'name' => $employee->full_legal_name,
+                'position' => $employee->position,
+                'sin_number' => $employee->sin_number,
+                'address' => $employee->address,
+                'postal_code' => $employee->postal_code,
+                'country' => $employee->country,
+                'hourly_rate' => $hourlyRate,
+                'pay_day' => $payDay->format('Y-m-d'),
+                'period_start' => $periodStart->format('Y-m-d'),
+                'period_end' => $periodEnd->format('Y-m-d'),
+                'earnings' => [
+                    'regular' => [
+                        'hours' => $regularHours,
+                        'rate' => $hourlyRate,
+                        'current_amount' => round($regularPay, 2),
+                        'ytd_amount' => round($regularPay * 26, 2)
+                    ],
+                    'stat_holiday_paid' => [
+                        'hours' => $statHolidayHours,
+                        'rate' => $hourlyRate,
+                        'current_amount' => round($statHolidayPay, 2),
+                        'ytd_amount' => round($statHolidayPay * 26, 2)
+                    ],
+                    'overtime' => [
+                        'hours' => $overtimeHours,
+                        'rate' => $hourlyRate * 1.5,
+                        'current_amount' => round($overtimePay, 2),
+                        'ytd_amount' => round($overtimePay * 26, 2)
+                    ],
+                    'vac_paid' => [
+                        'hours' => 0,
+                        'rate' => $hourlyRate,
+                        'current_amount' => round($vacationPaid, 2),
+                        'ytd_amount' => round($vacationPaid * 26, 2)
+                    ],
+                    'total' => [
+                        'hours' => $totalHours,
+                        'rate' => $hourlyRate,
+                        'current_amount' => round($totalEarnings, 2),
+                        'ytd_amount' => round($ytdEarnings, 2)
+                    ]
+                ],
+                'deductions' => [
+                    'cpp_employee' => [
+                        'current_amount' => round($cppContribution, 2),
+                        'ytd_amount' => round($ytdCPP, 2)
+                    ],
+                    'ei_employee' => [
+                        'current_amount' => round($eiContribution, 2),
+                        'ytd_amount' => round($ytdEI, 2)
+                    ],
+                    'federal_income_tax' => [
+                        'current_amount' => round($federalTaxPerPeriod, 2),
+                        'ytd_amount' => round($ytdFederalTax, 2)
+                    ],
+                    'total' => [
+                        'current_amount' => round($totalDeductions, 2),
+                        'ytd_amount' => round($ytdCPP + $ytdEI + $ytdFederalTax, 2)
+                    ]
+                ],
+                'net_pay' => round($netPay, 2),
+                'vacation_summary' => [
+                    'vac_earned' => round($vacationEarned, 2),
+                    'vac_earned_ytd' => round($vacationEarned * 26, 2),
+                    'vac_paid' => round($vacationPaid, 2),
+                    'vac_paid_ytd' => round($vacationPaid * 26, 2)
+                ]
+            ];
+        }
+        
+        // Generate HTML for PDF
+        $html = view('reports.pay-stubs', [
+            'payDay' => $payDay->format('l, M j, Y'),
+            'periodStart' => $periodStart->format('M j, Y'),
+            'periodEnd' => $periodEnd->format('M j, Y'),
+            'payStubs' => $payStubsData,
+            'generatedAt' => TimezoneUtil::formatNow()
+        ])->render();
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'pay_day' => $payDay->format('Y-m-d'),
+                'period_start' => $periodStart->format('Y-m-d'),
+                'period_end' => $periodEnd->format('Y-m-d'),
+                'pay_stubs' => $payStubsData,
+                'html' => $html
+            ]
+        ]);
+    }
+
+    /**
+     * Calculate federal income tax (simplified)
+     */
+    private function calculateFederalTax($annualIncome)
+    {
+        // 2025 Federal Tax Brackets (simplified)
+        if ($annualIncome <= 53359) {
+            return $annualIncome * 0.15;
+        } elseif ($annualIncome <= 106717) {
+            return 53359 * 0.15 + ($annualIncome - 53359) * 0.205;
+        } elseif ($annualIncome <= 165430) {
+            return 53359 * 0.15 + (106717 - 53359) * 0.205 + ($annualIncome - 106717) * 0.26;
+        } elseif ($annualIncome <= 235675) {
+            return 53359 * 0.15 + (106717 - 53359) * 0.205 + (165430 - 106717) * 0.26 + ($annualIncome - 165430) * 0.29;
+        } else {
+            return 53359 * 0.15 + (106717 - 53359) * 0.205 + (165430 - 106717) * 0.26 + (235675 - 165430) * 0.29 + ($annualIncome - 235675) * 0.33;
+        }
+    }
+
+    /**
+     * Generate editable pay stubs with form fields
+     */
+    public function generatePayStubsEditable(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'pay_day' => 'required|date',
+            'employee_ids' => 'required|array',
+            'employee_ids.*' => 'exists:employees,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $payDay = TimezoneUtil::parse($request->pay_day);
+        $employeeIds = $request->employee_ids;
+        
+        // Calculate work period for the selected pay day
+        $periodStart = $payDay->copy()->subDays(20);
+        $periodEnd = $payDay->copy()->subDays(7);
+        
+        // Get selected employees
+        $employees = Employee::whereIn('id', $employeeIds)->get();
+        
+        $payStubsData = [];
+        
+        foreach ($employees as $employee) {
+            // Get work hours for the period
+            $workHours = $employee->workHours()
+                ->whereBetween('date', [$periodStart->format('Y-m-d'), $periodEnd->format('Y-m-d')])
+                ->get();
+            
+            $totalHours = $workHours->sum('total_hours');
+            $hourlyRate = $employee->hourly_rate;
+            
+            // Calculate earnings
+            $regularHours = min($totalHours, 80); // Assuming 80 hours per pay period (40 hours/week * 2 weeks)
+            $overtimeHours = max(0, $totalHours - 80);
+            $regularPay = $regularHours * $hourlyRate;
+            $overtimePay = $overtimeHours * ($hourlyRate * 1.5); // 1.5x for overtime
+            
+            // Stat holiday and vacation calculations (simplified)
+            $statHolidayHours = 0; // This would be calculated based on actual stat holidays
+            $statHolidayPay = $statHolidayHours * $hourlyRate;
+            
+            $vacationPay = ($regularPay + $overtimePay) * 0.04; // 4% vacation pay
+            $vacationPaid = 0; // This would be tracked separately
+            
+            $totalEarnings = $regularPay + $overtimePay + $statHolidayPay + $vacationPay;
+            
+            // Calculate YTD totals (simplified - would need to track this in database)
+            $ytdEarnings = $totalEarnings * 26; // Assuming 26 pay periods per year
+            $ytdCPP = 0;
+            $ytdEI = 0;
+            $ytdFederalTax = 0;
+            
+            // Calculate deductions
+            $cppRate = 0.0595; // 5.95%
+            $cppBasicExemption = 3500;
+            $cppMaxEarnings = 68500;
+            $cppContribution = min(max(0, $totalEarnings - ($cppBasicExemption / 26)), $cppMaxEarnings / 26) * $cppRate;
+            
+            $eiRate = 0.0166; // 1.66%
+            $eiMaxInsurableEarnings = 63200;
+            $eiContribution = min($totalEarnings, $eiMaxInsurableEarnings / 26) * $eiRate;
+            
+            // Federal income tax (simplified calculation)
+            $federalTax = $this->calculateFederalTax($totalEarnings * 26); // Annualized for tax calculation
+            $federalTaxPerPeriod = $federalTax / 26;
+            
+            $totalDeductions = $cppContribution + $eiContribution + $federalTaxPerPeriod;
+            $netPay = $totalEarnings - $totalDeductions;
+            
+            // Vacation summary
+            $vacationEarned = $totalEarnings * 0.04; // 4% of earnings
+            $vacationPaid = 0; // Would be tracked separately
+            
+            $payStubsData[] = [
+                'employee_id' => $employee->id,
+                'name' => $employee->full_legal_name,
+                'position' => $employee->position,
+                'sin_number' => $employee->sin_number,
+                'address' => $employee->address,
+                'postal_code' => $employee->postal_code,
+                'country' => $employee->country,
+                'hourly_rate' => $hourlyRate,
+                'pay_day' => $payDay->format('Y-m-d'),
+                'period_start' => $periodStart->format('Y-m-d'),
+                'period_end' => $periodEnd->format('Y-m-d'),
+                'earnings' => [
+                    'regular' => [
+                        'hours' => $regularHours,
+                        'rate' => $hourlyRate,
+                        'current_amount' => round($regularPay, 2),
+                        'ytd_amount' => round($regularPay * 26, 2)
+                    ],
+                    'stat_holiday_paid' => [
+                        'hours' => $statHolidayHours,
+                        'rate' => $hourlyRate,
+                        'current_amount' => round($statHolidayPay, 2),
+                        'ytd_amount' => round($statHolidayPay * 26, 2)
+                    ],
+                    'overtime' => [
+                        'hours' => $overtimeHours,
+                        'rate' => $hourlyRate * 1.5,
+                        'current_amount' => round($overtimePay, 2),
+                        'ytd_amount' => round($overtimePay * 26, 2)
+                    ],
+                    'vac_paid' => [
+                        'hours' => 0,
+                        'rate' => $hourlyRate,
+                        'current_amount' => round($vacationPaid, 2),
+                        'ytd_amount' => round($vacationPaid * 26, 2)
+                    ],
+                    'total' => [
+                        'hours' => $totalHours,
+                        'rate' => $hourlyRate,
+                        'current_amount' => round($totalEarnings, 2),
+                        'ytd_amount' => round($ytdEarnings, 2)
+                    ]
+                ],
+                'deductions' => [
+                    'cpp_employee' => [
+                        'current_amount' => round($cppContribution, 2),
+                        'ytd_amount' => round($ytdCPP, 2)
+                    ],
+                    'ei_employee' => [
+                        'current_amount' => round($eiContribution, 2),
+                        'ytd_amount' => round($ytdEI, 2)
+                    ],
+                    'federal_income_tax' => [
+                        'current_amount' => round($federalTaxPerPeriod, 2),
+                        'ytd_amount' => round($ytdFederalTax, 2)
+                    ],
+                    'total' => [
+                        'current_amount' => round($totalDeductions, 2),
+                        'ytd_amount' => round($ytdCPP + $ytdEI + $ytdFederalTax, 2)
+                    ]
+                ],
+                'net_pay' => round($netPay, 2),
+                'vacation_summary' => [
+                    'vac_earned' => round($vacationEarned, 2),
+                    'vac_earned_ytd' => round($vacationEarned * 26, 2),
+                    'vac_paid' => round($vacationPaid, 2),
+                    'vac_paid_ytd' => round($vacationPaid * 26, 2)
+                ]
+            ];
+        }
+        
+        // Generate HTML for editable form
+        $html = view('reports.pay-stubs-editable', [
+            'payDay' => $payDay->format('l, M j, Y'),
+            'periodStart' => $periodStart->format('M j, Y'),
+            'periodEnd' => $periodEnd->format('M j, Y'),
+            'payStubs' => $payStubsData,
+            'generatedAt' => TimezoneUtil::formatNow()
+        ])->render();
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'pay_day' => $payDay->format('Y-m-d'),
+                'period_start' => $periodStart->format('Y-m-d'),
+                'period_end' => $periodEnd->format('Y-m-d'),
+                'pay_stubs' => $payStubsData,
+                'html' => $html
+            ]
+        ]);
+    }
 }
