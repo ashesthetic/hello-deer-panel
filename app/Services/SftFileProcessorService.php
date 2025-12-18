@@ -182,7 +182,16 @@ class SftFileProcessorService
                         'prepay_total' => $fileData['data']['prepay_total'],
                         // Loyalty Discounts
                         'journey_discount' => $fileData['data']['journey_discount'],
-                        'aeroplan_discount' => $fileData['data']['aeroplan_discount']
+                        'aeroplan_discount' => $fileData['data']['aeroplan_discount'],
+                        // Fuel Volume Data
+                        'diesel_volume' => $fileData['data']['diesel_volume'],
+                        'diesel_total' => $fileData['data']['diesel_total'],
+                        'regular_volume' => $fileData['data']['regular_volume'],
+                        'regular_total' => $fileData['data']['regular_total'],
+                        'plus_volume' => $fileData['data']['plus_volume'],
+                        'plus_total' => $fileData['data']['plus_total'],
+                        'sup_plus_volume' => $fileData['data']['sup_plus_volume'],
+                        'sup_plus_total' => $fileData['data']['sup_plus_total']
                     ];
                     
                     // Mark file as processed
@@ -509,14 +518,8 @@ class SftFileProcessorService
                 }
             }
 
-            // Validate that we found some data
-            if ($salesData['total_sales'] == 0 && $salesData['fuel_sales'] == 0 && $salesData['item_sales'] == 0) {
-                return [
-                    'success' => false,
-                    'message' => 'No sales data found in file: ' . $file->original_name
-                ];
-            }
-
+            // SFT files can have zero sales data - this is valid, so we'll always return success
+            // No validation needed for zero values as empty shifts are legitimate
             return [
                 'success' => true,
                 'data' => $salesData
