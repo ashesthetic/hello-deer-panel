@@ -95,6 +95,11 @@ Route::get('/work-schedules/employees-without-current-week', [\App\Http\Controll
 Route::get('/work-schedules/week-options', [\App\Http\Controllers\Api\WorkScheduleController::class, 'getWeekOptions'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/employees/{employee}/work-schedules', [\App\Http\Controllers\Api\WorkScheduleController::class, 'employeeSchedules'])->middleware(['auth:sanctum', 'not.staff']);
 
+// Schedule routes (simplified scheduling system)
+Route::get('/schedules/current-week', [\App\Http\Controllers\Api\ScheduleController::class, 'currentWeek'])->middleware(['auth:sanctum', 'not.staff']);
+Route::get('/schedules/stats', [\App\Http\Controllers\Api\ScheduleController::class, 'stats'])->middleware(['auth:sanctum', 'not.staff']);
+Route::apiResource('schedules', \App\Http\Controllers\Api\ScheduleController::class)->middleware(['auth:sanctum', 'not.staff']);
+
 // Vendor Invoice routes (Non-staff users only)
 Route::get('/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/vendor-invoices/bank-accounts', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getBankAccounts'])->middleware(['auth:sanctum', 'not.staff']);
