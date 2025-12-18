@@ -72,5 +72,13 @@ Route::get('/provider-bills/providers', [\App\Http\Controllers\Api\ProviderBillC
 Route::get('/provider-bills/{providerBill}/download', [\App\Http\Controllers\Api\ProviderBillController::class, 'downloadFile'])->middleware('auth:sanctum');
 Route::apiResource('provider-bills', \App\Http\Controllers\Api\ProviderBillController::class)->middleware('auth:sanctum');
 
+// Owner routes
+Route::apiResource('owners', \App\Http\Controllers\Api\OwnerController::class)->middleware('auth:sanctum');
+
+// Owner Equity routes
+Route::get('/owner-equities/summary', [\App\Http\Controllers\Api\OwnerEquityController::class, 'summary'])->middleware('auth:sanctum');
+Route::get('/owners/{owner}/equity-summary', [\App\Http\Controllers\Api\OwnerEquityController::class, 'ownerSummary'])->middleware('auth:sanctum');
+Route::apiResource('owner-equities', \App\Http\Controllers\Api\OwnerEquityController::class)->middleware('auth:sanctum');
+
 // Profit routes
 Route::get('/profit/percentages', [\App\Http\Controllers\Api\ProfitController::class, 'getPercentages'])->middleware('auth:sanctum'); 

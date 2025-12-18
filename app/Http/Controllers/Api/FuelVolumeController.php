@@ -47,7 +47,21 @@ class FuelVolumeController extends Controller
         if (!in_array($sortBy, $allowedSortFields)) {
             $sortBy = 'date';
         }
-        $query->orderBy($sortBy, $sortDirection);
+        
+        // Always sort by date first, then by shift (evening first, morning second)
+        if ($sortBy === 'date') {
+            $query->orderBy('date', $sortDirection);
+            $query->orderByRaw("CASE WHEN shift = 'evening' THEN 1 WHEN shift = 'morning' THEN 2 ELSE 3 END");
+        } elseif ($sortBy === 'shift') {
+            // When sorting by shift, still maintain date order within each shift
+            $query->orderBy('shift', $sortDirection);
+            $query->orderBy('date', 'desc');
+        } else {
+            // For other fields, sort by the field first, then by date and shift
+            $query->orderBy($sortBy, $sortDirection);
+            $query->orderBy('date', 'desc');
+            $query->orderByRaw("CASE WHEN shift = 'evening' THEN 1 WHEN shift = 'morning' THEN 2 ELSE 3 END");
+        }
         
         $fuelVolumes = $query->paginate($perPage);
         
@@ -210,7 +224,7 @@ class FuelVolumeController extends Controller
         $fuelVolumes = $query->whereYear('date', $year)
             ->whereMonth('date', $month)
             ->orderBy('date', 'asc')
-            ->orderBy('shift', 'asc')
+            ->orderByRaw("CASE WHEN shift = 'evening' THEN 1 WHEN shift = 'morning' THEN 2 ELSE 3 END")
             ->get();
         
         // Add calculated fields to each fuel volume entry
