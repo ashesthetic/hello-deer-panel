@@ -11,13 +11,17 @@ class VendorInvoice extends Model
 
     protected $fillable = [
         'vendor_id',
+        'invoice_number',
         'invoice_date',
         'status',
         'type',
         'payment_date',
         'payment_method',
         'invoice_file_path',
-        'amount',
+        'subtotal',
+        'gst',
+        'total',
+        'notes',
         'description',
         'user_id',
     ];
@@ -25,8 +29,30 @@ class VendorInvoice extends Model
     protected $casts = [
         'invoice_date' => 'date',
         'payment_date' => 'date',
-        'amount' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'gst' => 'decimal:2',
+        'total' => 'decimal:2',
     ];
+
+    /**
+     * Calculate subtotal from total and GST
+     */
+    public function calculateSubtotal()
+    {
+        $this->subtotal = $this->total - $this->gst;
+        return $this->subtotal;
+    }
+
+    /**
+     * Boot method to automatically calculate subtotal
+     */
+    protected static function boot()
+    {
+        parent::boot();
+        static::saving(function ($vendorInvoice) {
+            $vendorInvoice->calculateSubtotal();
+        });
+    }
 
     /**
      * Relationship with vendor

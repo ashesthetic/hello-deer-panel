@@ -117,6 +117,7 @@ class DailySaleController extends Controller
             'pos_up_credit' => 'required|numeric|min:0',
             'pos_discover' => 'required|numeric|min:0',
             'pos_interac_debit' => 'required|numeric|min:0',
+            'pos_debit_transaction_count' => 'required|integer|min:0',
             'afd_visa' => 'required|numeric|min:0',
             'afd_mastercard' => 'required|numeric|min:0',
             'afd_amex' => 'required|numeric|min:0',
@@ -124,6 +125,7 @@ class DailySaleController extends Controller
             'afd_up_credit' => 'required|numeric|min:0',
             'afd_discover' => 'required|numeric|min:0',
             'afd_interac_debit' => 'required|numeric|min:0',
+            'afd_debit_transaction_count' => 'required|integer|min:0',
             'journey_discount' => 'required|numeric|min:0',
             'aeroplan_discount' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
@@ -223,6 +225,7 @@ class DailySaleController extends Controller
             'pos_up_credit' => 'required|numeric|min:0',
             'pos_discover' => 'required|numeric|min:0',
             'pos_interac_debit' => 'required|numeric|min:0',
+            'pos_debit_transaction_count' => 'required|integer|min:0',
             'afd_visa' => 'required|numeric|min:0',
             'afd_mastercard' => 'required|numeric|min:0',
             'afd_amex' => 'required|numeric|min:0',
@@ -230,6 +233,7 @@ class DailySaleController extends Controller
             'afd_up_credit' => 'required|numeric|min:0',
             'afd_discover' => 'required|numeric|min:0',
             'afd_interac_debit' => 'required|numeric|min:0',
+            'afd_debit_transaction_count' => 'required|integer|min:0',
             'journey_discount' => 'required|numeric|min:0',
             'aeroplan_discount' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
@@ -324,6 +328,124 @@ class DailySaleController extends Controller
 
         return response()->json([
             'message' => 'Daily sale deleted successfully'
+        ]);
+    }
+
+    /**
+     * Generate settlement report for a date range
+     */
+    public function generateSettlementReport(Request $request)
+    {
+        $user = $request->user();
+        
+        $request->validate([
+            'from_date' => 'required|date',
+            'to_date' => 'required|date|after_or_equal:from_date',
+        ]);
+
+        $fromDate = $request->input('from_date');
+        $toDate = $request->input('to_date');
+
+        // Build query based on user role
+        $query = DailySale::query();
+        
+        // Editors can only see their own entries, admins can see all
+        if ($user->isEditor()) {
+            $query->where('user_id', $user->id);
+        }
+        
+        $dailySales = $query->whereBetween('date', [$fromDate, $toDate])
+            ->orderBy('date', 'asc')
+            ->get();
+
+        $settlementData = [];
+        
+        // Get fee percentages from environment
+        $visaFeePercentage = env('VISA_FEE_PERCENTAGE', 1.75);
+        $mastercardFeePercentage = env('MASTERCARD_FEE_PERCENTAGE', 1.75);
+        $amexFeePercentage = env('AMEX_FEE_PERCENTAGE', 2.22);
+        $interacFeePerTransaction = env('INTERAC_FEE_PER_TRANSACTION', 0.07);
+
+        foreach ($dailySales as $sale) {
+            // Fix timezone issue by using the date directly without formatting
+            $date = $sale->date->toDateString();
+            
+            // Define all payment types with their corresponding fee types
+            $paymentTypes = [
+                'POS VISA' => ['amount' => $sale->pos_visa, 'fee_type' => 'visa'],
+                'POS MASTERCARD' => ['amount' => $sale->pos_mastercard, 'fee_type' => 'mastercard'],
+                'POS AMEX' => ['amount' => $sale->pos_amex, 'fee_type' => 'amex'],
+                'POS COMMERCIAL' => ['amount' => $sale->pos_commercial, 'fee_type' => null],
+                'POS UP CREDIT' => ['amount' => $sale->pos_up_credit, 'fee_type' => null],
+                'POS DISCOVER' => ['amount' => $sale->pos_discover, 'fee_type' => null],
+                'POS INTERAC' => ['amount' => $sale->pos_interac_debit, 'fee_type' => 'interac', 'transaction_count' => $sale->pos_debit_transaction_count],
+                'AFD VISA' => ['amount' => $sale->afd_visa, 'fee_type' => 'visa'],
+                'AFD MASTERCARD' => ['amount' => $sale->afd_mastercard, 'fee_type' => 'mastercard'],
+                'AFD AMEX' => ['amount' => $sale->afd_amex, 'fee_type' => 'amex'],
+                'AFD COMMERCIAL' => ['amount' => $sale->afd_commercial, 'fee_type' => null],
+                'AFD UP CREDIT' => ['amount' => $sale->afd_up_credit, 'fee_type' => null],
+                'AFD DISCOVER' => ['amount' => $sale->afd_discover, 'fee_type' => null],
+                'AFD INTERAC' => ['amount' => $sale->afd_interac_debit, 'fee_type' => 'interac', 'transaction_count' => $sale->afd_debit_transaction_count],
+            ];
+
+            // Add payment amounts (Credit entries) and their corresponding fees
+            foreach ($paymentTypes as $type => $data) {
+                $amount = $data['amount'];
+                $feeType = $data['fee_type'];
+                $transactionCount = $data['transaction_count'] ?? 0;
+                
+                if ($amount > 0) {
+                    // Add the payment amount
+                    $settlementData[] = [
+                        'date' => $date,
+                        'remarks' => $type,
+                        'debit' => 0,
+                        'credit' => $amount,
+                    ];
+                    
+                    // Add the corresponding fee if applicable
+                    if ($feeType === 'visa') {
+                        $fee = ($amount * $visaFeePercentage) / 100;
+                        $settlementData[] = [
+                            'date' => $date,
+                            'remarks' => "VISA Fee ({$visaFeePercentage}%)",
+                            'debit' => $fee,
+                            'credit' => 0,
+                        ];
+                    } elseif ($feeType === 'mastercard') {
+                        $fee = ($amount * $mastercardFeePercentage) / 100;
+                        $settlementData[] = [
+                            'date' => $date,
+                            'remarks' => "Mastercard Fee ({$mastercardFeePercentage}%)",
+                            'debit' => $fee,
+                            'credit' => 0,
+                        ];
+                    } elseif ($feeType === 'amex') {
+                        $fee = ($amount * $amexFeePercentage) / 100;
+                        $settlementData[] = [
+                            'date' => $date,
+                            'remarks' => "AMEX Fee ({$amexFeePercentage}%)",
+                            'debit' => $fee,
+                            'credit' => 0,
+                        ];
+                    } elseif ($feeType === 'interac') {
+                        $fee = $transactionCount * $interacFeePerTransaction;
+                        $settlementData[] = [
+                            'date' => $date,
+                            'remarks' => "Interac Fee (\${$interacFeePerTransaction} per transaction, {$transactionCount} transactions)",
+                            'debit' => $fee,
+                            'credit' => 0,
+                        ];
+                    }
+                }
+            }
+        }
+
+        return response()->json([
+            'data' => $settlementData,
+            'from_date' => $fromDate,
+            'to_date' => $toDate,
+            'total_entries' => count($settlementData),
         ]);
     }
 }
