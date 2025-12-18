@@ -40,6 +40,14 @@ Route::apiResource('fuel-volumes', \App\Http\Controllers\Api\FuelVolumeControlle
 // Vendor routes
 Route::apiResource('vendors', \App\Http\Controllers\Api\VendorController::class)->middleware('auth:sanctum');
 
+// Bank Account routes
+Route::get('/bank-accounts/summary', [\App\Http\Controllers\Api\BankAccountController::class, 'summary'])->middleware('auth:sanctum');
+Route::apiResource('bank-accounts', \App\Http\Controllers\Api\BankAccountController::class)->middleware('auth:sanctum');
+
+// Bank Account routes
+Route::get('/bank-accounts/summary', [\App\Http\Controllers\Api\BankAccountController::class, 'summary'])->middleware('auth:sanctum');
+Route::apiResource('bank-accounts', \App\Http\Controllers\Api\BankAccountController::class)->middleware('auth:sanctum');
+
 // User management routes (Admin only)
 Route::apiResource('users', \App\Http\Controllers\Api\UserController::class)->middleware('auth:sanctum');
 Route::get('/user/profile', [\App\Http\Controllers\Api\UserController::class, 'profile'])->middleware('auth:sanctum');
