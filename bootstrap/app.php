@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register middleware aliases
         $middleware->alias([
             'not.staff' => \App\Http\Middleware\CheckNotStaff::class,
+            'check.not.staff' => \App\Http\Middleware\CheckNotStaff::class,
             'can.manage.users' => \App\Http\Middleware\CheckCanManageUsers::class,
         ]);
     })
