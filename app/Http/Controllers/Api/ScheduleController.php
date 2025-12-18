@@ -7,6 +7,7 @@ use App\Models\Schedule;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 
 class ScheduleController extends Controller
@@ -365,4 +366,103 @@ class ScheduleController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Email schedule to active employees
+     */
+    public function emailSchedule(Request $request)
+    {
+        // Check permissions
+        if (!auth()->user()->canCreate()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'week_start_date' => 'required|date',
+            'pdf_data' => 'required|string', // Base64 encoded PDF
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $weekStartDate = $request->week_start_date;
+        
+        // Get all schedules for this week
+        $schedules = Schedule::with(['employee'])
+            ->where('week_start_date', $weekStartDate)
+            ->get();
+
+        if ($schedules->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No schedules found for this week'
+            ], 404);
+        }
+
+        // Get unique active employees from schedules
+        $employeeIds = $schedules->pluck('employee_id')->unique();
+        $employees = Employee::whereIn('id', $employeeIds)
+            ->where('status', 'active')
+            ->whereNotNull('email')
+            ->get();
+
+        if ($employees->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active employees with email addresses found'
+            ], 404);
+        }
+
+        // Decode PDF data
+        $pdfData = base64_decode($request->pdf_data);
+        
+        // Get week range for email subject
+        $firstSchedule = $schedules->first();
+        $weekStart = Carbon::parse($firstSchedule->week_start_date);
+        $weekEnd = Carbon::parse($firstSchedule->week_end_date);
+        $weekRange = $weekStart->format('M d') . ' - ' . $weekEnd->format('M d, Y');
+
+        $sentCount = 0;
+        $failedEmails = [];
+        $errorMessages = [];
+
+        // Send email to each employee
+        foreach ($employees as $employee) {
+            try {
+                Mail::raw("Hello {$employee->preferred_name},\n\nPlease find attached your work schedule for the week of {$weekRange}.\n\nBest regards,\Hello Deer!", function ($message) use ($employee, $weekRange, $pdfData) {
+                    $message->to($employee->email)
+                        ->subject("Work Schedule - {$weekRange}")
+                        ->from(env('MAIL_FROM_ADDRESS', 'noreply@example.com'), 'Hello Deer!')
+                        ->attachData($pdfData, 'schedule.pdf', [
+                            'mime' => 'application/pdf',
+                        ]);
+                });
+                $sentCount++;
+            } catch (\Exception $e) {
+                $failedEmails[] = $employee->email;
+                $errorMessages[] = $e->getMessage();
+                \Log::error('Failed to send schedule email to ' . $employee->email . ': ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Schedule sent to {$sentCount} employee(s)",
+            'data' => [
+                'sent_count' => $sentCount,
+                'failed_count' => count($failedEmails),
+                'failed_emails' => $failedEmails,
+                'error_messages' => $errorMessages
+            ]
+        ]);
+    }
 }
+
