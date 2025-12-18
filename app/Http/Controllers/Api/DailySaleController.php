@@ -45,12 +45,15 @@ class DailySaleController extends Controller
             $query->orderByRaw('(card + cash + coupon + delivery) ' . $sortDirection);
         } elseif ($sortBy === 'reported_total') {
             $query->orderBy('reported_total', $sortDirection);
+        } elseif ($sortBy === 'approximate_profit') {
+            // For approximate profit, we'll sort by the calculated value after fetching
+            $query->orderBy('date', $sortDirection); // Default sort, will be re-sorted after calculation
         } else {
             // Default sorting and other direct fields
             $allowedSortFields = [
                 'date', 'fuel_sale', 'store_sale', 'gst', 'store_discount', 'penny_rounding',
                 'card', 'cash', 'coupon', 'delivery', 'reported_total', 'number_of_safedrops',
-                'safedrops_amount', 'cash_on_hand'
+                'safedrops_amount', 'cash_on_hand', 'approximate_profit'
             ];
             if (!in_array($sortBy, $allowedSortFields)) {
                 $sortBy = 'date';
@@ -69,6 +72,9 @@ class DailySaleController extends Controller
             $sale->total_afd_transactions = $sale->afd_visa + $sale->afd_mastercard + $sale->afd_amex + $sale->afd_commercial + 
                                            $sale->afd_up_credit + $sale->afd_discover + $sale->afd_interac_debit;
             $sale->total_loyalty_discounts = $sale->journey_discount + $sale->aeroplan_discount;
+            $sale->total_low_margin_items = $sale->tobacco_25 + $sale->tobacco_20 + $sale->lottery + $sale->prepay;
+            $sale->store_sale_calculated = $sale->getStoreSaleCalculatedAttribute();
+            $sale->approximate_profit = $sale->getApproximateProfitAttribute();
             
             // Legacy fields for backward compatibility
             $sale->total_product_sale = $sale->fuel_sale + $sale->store_sale + $sale->gst;
@@ -79,6 +85,17 @@ class DailySaleController extends Controller
             $sale->reported_total = $sale->reported_total ?? 0;
             return $sale;
         });
+        
+        // Handle sorting for approximate_profit after calculations
+        if ($sortBy === 'approximate_profit') {
+            $collection = $dailySales->getCollection();
+            if ($sortDirection === 'asc') {
+                $collection = $collection->sortBy('approximate_profit');
+            } else {
+                $collection = $collection->sortByDesc('approximate_profit');
+            }
+            $dailySales->setCollection($collection);
+        }
         
         return response()->json($dailySales);
     }
@@ -128,6 +145,10 @@ class DailySaleController extends Controller
             'afd_debit_transaction_count' => 'required|integer|min:0',
             'journey_discount' => 'required|numeric|min:0',
             'aeroplan_discount' => 'required|numeric|min:0',
+            'tobacco_25' => 'required|numeric|min:0',
+            'tobacco_20' => 'required|numeric|min:0',
+            'lottery' => 'required|numeric|min:0',
+            'prepay' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
@@ -144,6 +165,9 @@ class DailySaleController extends Controller
         $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial + 
                                             $dailySale->afd_up_credit + $dailySale->afd_discover + $dailySale->afd_interac_debit;
         $dailySale->total_loyalty_discounts = $dailySale->journey_discount + $dailySale->aeroplan_discount;
+        $dailySale->total_low_margin_items = $dailySale->tobacco_25 + $dailySale->tobacco_20 + $dailySale->lottery + $dailySale->prepay;
+        $dailySale->store_sale_calculated = $dailySale->getStoreSaleCalculatedAttribute();
+        $dailySale->approximate_profit = $dailySale->getApproximateProfitAttribute();
         
         // Legacy fields for backward compatibility
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
@@ -179,6 +203,9 @@ class DailySaleController extends Controller
         $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial + 
                                             $dailySale->afd_up_credit + $dailySale->afd_discover + $dailySale->afd_interac_debit;
         $dailySale->total_loyalty_discounts = $dailySale->journey_discount + $dailySale->aeroplan_discount;
+        $dailySale->total_low_margin_items = $dailySale->tobacco_25 + $dailySale->tobacco_20 + $dailySale->lottery + $dailySale->prepay;
+        $dailySale->store_sale_calculated = $dailySale->getStoreSaleCalculatedAttribute();
+        $dailySale->approximate_profit = $dailySale->getApproximateProfitAttribute();
         
         // Legacy fields for backward compatibility
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
@@ -236,6 +263,10 @@ class DailySaleController extends Controller
             'afd_debit_transaction_count' => 'required|integer|min:0',
             'journey_discount' => 'required|numeric|min:0',
             'aeroplan_discount' => 'required|numeric|min:0',
+            'tobacco_25' => 'required|numeric|min:0',
+            'tobacco_20' => 'required|numeric|min:0',
+            'lottery' => 'required|numeric|min:0',
+            'prepay' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
@@ -249,6 +280,9 @@ class DailySaleController extends Controller
         $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial + 
                                             $dailySale->afd_up_credit + $dailySale->afd_discover + $dailySale->afd_interac_debit;
         $dailySale->total_loyalty_discounts = $dailySale->journey_discount + $dailySale->aeroplan_discount;
+        $dailySale->total_low_margin_items = $dailySale->tobacco_25 + $dailySale->tobacco_20 + $dailySale->lottery + $dailySale->prepay;
+        $dailySale->store_sale_calculated = $dailySale->getStoreSaleCalculatedAttribute();
+        $dailySale->approximate_profit = $dailySale->getApproximateProfitAttribute();
         
         // Legacy fields for backward compatibility
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
@@ -295,6 +329,9 @@ class DailySaleController extends Controller
             $sale->total_afd_transactions = $sale->afd_visa + $sale->afd_mastercard + $sale->afd_amex + $sale->afd_commercial + 
                                            $sale->afd_up_credit + $sale->afd_discover + $sale->afd_interac_debit;
             $sale->total_loyalty_discounts = $sale->journey_discount + $sale->aeroplan_discount;
+            $sale->total_low_margin_items = $sale->tobacco_25 + $sale->tobacco_20 + $sale->lottery + $sale->prepay;
+            $sale->store_sale_calculated = $sale->getStoreSaleCalculatedAttribute();
+            $sale->approximate_profit = $sale->getApproximateProfitAttribute();
             
             // Legacy fields for backward compatibility
             $sale->total_product_sale = $sale->fuel_sale + $sale->store_sale + $sale->gst;

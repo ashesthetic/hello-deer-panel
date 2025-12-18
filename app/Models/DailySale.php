@@ -45,6 +45,10 @@ class DailySale extends Model
         'afd_debit_transaction_count',
         'journey_discount',
         'aeroplan_discount',
+        'tobacco_25',
+        'tobacco_20',
+        'lottery',
+        'prepay',
         'notes',
         'user_id',
     ];
@@ -85,6 +89,10 @@ class DailySale extends Model
         'afd_debit_transaction_count' => 'integer',
         'journey_discount' => 'decimal:2',
         'aeroplan_discount' => 'decimal:2',
+        'tobacco_25' => 'decimal:2',
+        'tobacco_20' => 'decimal:2',
+        'lottery' => 'decimal:2',
+        'prepay' => 'decimal:2',
     ];
 
     // Calculate daily total (Fuel Sales + Item Sales + Store Discount + GST + Penny Rounding)
@@ -117,6 +125,36 @@ class DailySale extends Model
     public function getTotalLoyaltyDiscountsAttribute()
     {
         return $this->journey_discount + $this->aeroplan_discount;
+    }
+
+    // Calculate total low margin items
+    public function getTotalLowMarginItemsAttribute()
+    {
+        return $this->tobacco_25 + $this->tobacco_20 + $this->lottery + $this->prepay;
+    }
+
+    // Calculate store sale (Store Sale - (Tobacco 25 + Tobacco 20 + Lottery + Prepay + GST))
+    public function getStoreSaleCalculatedAttribute()
+    {
+        $lowMarginItems = $this->tobacco_25 + $this->tobacco_20 + $this->lottery + $this->prepay;
+        return $this->store_sale - $lowMarginItems - $this->gst;
+    }
+
+    // Calculate approximate profit
+    public function getApproximateProfitAttribute()
+    {
+        $fuelProfit = ($this->fuel_sale * config('profit.fuel_percentage', 4)) / 100;
+        $tobacco25Profit = ($this->tobacco_25 * config('profit.tobacco_25_percentage', 8)) / 100;
+        $tobacco20Profit = ($this->tobacco_20 * config('profit.tobacco_20_percentage', 8)) / 100;
+        $lotteryProfit = ($this->lottery * config('profit.lottery_percentage', 2)) / 100;
+        $prepayProfit = ($this->prepay * config('profit.prepay_percentage', 1)) / 100;
+        
+        // Calculate store sale directly to avoid infinite loop
+        $lowMarginItems = $this->tobacco_25 + $this->tobacco_20 + $this->lottery + $this->prepay;
+        $storeSaleCalculated = $this->store_sale - $lowMarginItems - $this->gst;
+        $storeSaleProfit = ($storeSaleCalculated * config('profit.store_sale_percentage', 50)) / 100;
+
+        return $fuelProfit + $tobacco25Profit + $tobacco20Profit + $lotteryProfit + $prepayProfit + $storeSaleProfit;
     }
 
     // Legacy methods for backward compatibility
