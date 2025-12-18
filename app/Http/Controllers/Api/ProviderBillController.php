@@ -44,9 +44,9 @@ class ProviderBillController extends Controller
 
         // Add status filter
         if ($status) {
-            if ($status === 'pending') {
+            if (strtolower($status) === 'pending') {
                 $query->pending();
-            } elseif ($status === 'paid') {
+            } elseif (strtolower($status) === 'paid') {
                 $query->paid();
             }
         }
