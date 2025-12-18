@@ -523,4 +523,38 @@ class DailySaleController extends Controller
             'total_entries' => count($settlementData),
         ]);
     }
+
+    /**
+     * Get last settled dates
+     */
+    public function getSettlementDates()
+    {
+        $debitDate = \App\Models\Option::get('last_settled_debit_date');
+        $creditDate = \App\Models\Option::get('last_settled_credit_date');
+
+        return response()->json([
+            'debit_date' => $debitDate,
+            'credit_date' => $creditDate,
+        ]);
+    }
+
+    /**
+     * Update last settled dates
+     */
+    public function updateSettlementDates(Request $request)
+    {
+        $validated = $request->validate([
+            'debit_date' => 'required|date',
+            'credit_date' => 'required|date',
+        ]);
+
+        \App\Models\Option::set('last_settled_debit_date', $validated['debit_date']);
+        \App\Models\Option::set('last_settled_credit_date', $validated['credit_date']);
+
+        return response()->json([
+            'message' => 'Settlement dates updated successfully',
+            'debit_date' => $validated['debit_date'],
+            'credit_date' => $validated['credit_date'],
+        ]);
+    }
 }
