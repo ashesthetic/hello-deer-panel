@@ -92,20 +92,23 @@ return new class extends Migration
     private function updateUniqueConstraint(Blueprint $table): void
     {
         try {
-            // Check if the old unique constraint exists
-            $indexes = DB::select("PRAGMA index_list(daily_fuels)");
-            $hasOldConstraint = false;
+            // Check if the old unique constraint exists using MySQL-specific query
+            $constraints = DB::select("
+                SELECT CONSTRAINT_NAME 
+                FROM information_schema.TABLE_CONSTRAINTS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'daily_fuels' 
+                AND CONSTRAINT_TYPE = 'UNIQUE'
+                AND CONSTRAINT_NAME LIKE '%date_fuel_type%'
+            ");
             
-            foreach ($indexes as $index) {
-                if (str_contains($index->name, 'date_fuel_type')) {
-                    $hasOldConstraint = true;
-                    break;
-                }
-            }
+            $hasOldConstraint = !empty($constraints);
             
             // Drop old constraint if it exists
             if ($hasOldConstraint) {
-                $table->dropUnique(['date', 'fuel_type']);
+                foreach ($constraints as $constraint) {
+                    $table->dropUnique($constraint->CONSTRAINT_NAME);
+                }
             }
             
             // Add new unique constraint on date only

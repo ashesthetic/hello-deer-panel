@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -39,10 +40,30 @@ return new class extends Migration
             
             // Update unique constraint to just date since we now have all fuel types in one row
             // Check if the unique constraint exists before dropping it
-            $indexes = Schema::getConnection()->getDoctrineSchemaManager()->listTableIndexes('daily_fuels');
-            if (array_key_exists('daily_fuels_date_fuel_type_unique', $indexes)) {
-                $table->dropUnique(['date', 'fuel_type']);
+            try {
+                $constraints = DB::select("
+                    SELECT CONSTRAINT_NAME 
+                    FROM information_schema.TABLE_CONSTRAINTS 
+                    WHERE TABLE_SCHEMA = DATABASE() 
+                    AND TABLE_NAME = 'daily_fuels' 
+                    AND CONSTRAINT_TYPE = 'UNIQUE'
+                    AND CONSTRAINT_NAME LIKE '%date_fuel_type%'
+                ");
+                
+                if (!empty($constraints)) {
+                    foreach ($constraints as $constraint) {
+                        $table->dropUnique($constraint->CONSTRAINT_NAME);
+                    }
+                }
+            } catch (\Exception $e) {
+                // If we can't check constraints, try to drop it directly
+                try {
+                    $table->dropUnique(['date', 'fuel_type']);
+                } catch (\Exception $e2) {
+                    // Constraint doesn't exist, that's fine
+                }
             }
+            
             $table->unique('date');
         });
     }
