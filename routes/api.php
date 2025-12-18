@@ -97,4 +97,16 @@ Route::get('/owners/{owner}/equity-summary', [\App\Http\Controllers\Api\OwnerEqu
 Route::apiResource('owner-equities', \App\Http\Controllers\Api\OwnerEquityController::class)->middleware('auth:sanctum');
 
 // Profit routes
-Route::get('/profit/percentages', [\App\Http\Controllers\Api\ProfitController::class, 'getPercentages'])->middleware('auth:sanctum'); 
+Route::get('/profit/percentages', [\App\Http\Controllers\Api\ProfitController::class, 'getPercentages'])->middleware('auth:sanctum');
+
+// Transaction routes
+Route::get('/transactions/summary', [\App\Http\Controllers\Api\TransactionController::class, 'summary'])->middleware('auth:sanctum');
+Route::apiResource('transactions', \App\Http\Controllers\Api\TransactionController::class)->middleware('auth:sanctum');
+
+// Bank Transfer routes
+Route::get('/bank-transfers/accounts', [\App\Http\Controllers\Api\BankTransferController::class, 'getBankAccounts'])->middleware('auth:sanctum');
+Route::get('/bank-transfers/history', [\App\Http\Controllers\Api\BankTransferController::class, 'history'])->middleware('auth:sanctum');
+Route::get('/bank-transfers/summary', [\App\Http\Controllers\Api\BankTransferController::class, 'summary'])->middleware('auth:sanctum');
+Route::post('/bank-transfers/transfer', [\App\Http\Controllers\Api\BankTransferController::class, 'transfer'])->middleware('auth:sanctum');
+Route::get('/bank-transfers/{id}', [\App\Http\Controllers\Api\BankTransferController::class, 'show'])->middleware('auth:sanctum');
+Route::delete('/bank-transfers/{id}/cancel', [\App\Http\Controllers\Api\BankTransferController::class, 'cancel'])->middleware('auth:sanctum'); 
