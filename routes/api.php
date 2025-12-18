@@ -44,6 +44,10 @@ Route::apiResource('daily-sales', \App\Http\Controllers\Api\DailySaleController:
 Route::get('daily-fuels/month/{year?}/{month?}', [\App\Http\Controllers\Api\DailyFuelController::class, 'getByMonth'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('daily-fuels', \App\Http\Controllers\Api\DailyFuelController::class)->middleware(['auth:sanctum', 'not.staff']);
 
+// Daily ATM routes (Admin only)
+Route::post('daily-atm/{daily_atm}/resolve', [\App\Http\Controllers\Api\DailyAtmController::class, 'resolve'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::apiResource('daily-atm', \App\Http\Controllers\Api\DailyAtmController::class)->middleware(['auth:sanctum', 'can.manage.users']);
+
 // Fuel Volume routes
 Route::get('fuel-volumes/month/{year?}/{month?}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'getByMonth'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('fuel-volumes/daily-summary/{date?}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'getDailySummary'])->middleware(['auth:sanctum', 'not.staff']);

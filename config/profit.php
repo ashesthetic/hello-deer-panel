@@ -17,4 +17,14 @@ return [
     'lottery_percentage' => env('LOTTERY_PROFIT_PERCENTAGE', 2),
     'prepay_percentage' => env('PREPAY_PROFIT_PERCENTAGE', 1),
     'store_sale_percentage' => env('STORE_SALE_PROFIT_PERCENTAGE', 50),
+    
+    /*
+    |--------------------------------------------------------------------------
+    | ATM Surcharge Rate
+    |--------------------------------------------------------------------------
+    |
+    | This is the surcharge fee charged per ATM transaction.
+    |
+    */
+    'atm_surcharge_rate' => env('ATM_SURCHARGE_RATE', 2.5),
 ]; 
