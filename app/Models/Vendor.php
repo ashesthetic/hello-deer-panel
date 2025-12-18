@@ -23,15 +23,12 @@ class Vendor extends Model
         'institute_number',
         'account_number',
         'void_check_path',
-        'order_before_days',
-        'possible_delivery_days',
         'notes',
         'user_id',
     ];
 
     protected $casts = [
-        'order_before_days' => 'array',
-        'possible_delivery_days' => 'array',
+        //
     ];
 
     /**

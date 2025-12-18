@@ -74,10 +74,6 @@ class VendorController extends Controller
             'institute_number' => 'nullable|string|required_if:payment_method,Direct Deposit',
             'account_number' => 'nullable|string|required_if:payment_method,Direct Deposit',
             'void_check' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-            'order_before_days' => 'required|array|min:1',
-            'order_before_days.*' => 'in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
-            'possible_delivery_days' => 'required|array|min:1',
-            'possible_delivery_days.*' => 'in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
             'notes' => 'nullable|string',
         ]);
 
@@ -89,8 +85,6 @@ class VendorController extends Controller
             'contact_person_title' => $request->contact_person_title,
             'possible_products' => $request->possible_products,
             'payment_method' => $request->payment_method,
-            'order_before_days' => $request->order_before_days,
-            'possible_delivery_days' => $request->possible_delivery_days,
             'notes' => $request->notes,
             'user_id' => $user->id,
         ];
@@ -159,10 +153,6 @@ class VendorController extends Controller
             'institute_number' => 'nullable|string|required_if:payment_method,Direct Deposit',
             'account_number' => 'nullable|string|required_if:payment_method,Direct Deposit',
             'void_check' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-            'order_before_days' => 'required|array|min:1',
-            'order_before_days.*' => 'in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
-            'possible_delivery_days' => 'required|array|min:1',
-            'possible_delivery_days.*' => 'in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
             'notes' => 'nullable|string',
         ]);
 
@@ -174,8 +164,6 @@ class VendorController extends Controller
             'contact_person_title' => $request->contact_person_title,
             'possible_products' => $request->possible_products,
             'payment_method' => $request->payment_method,
-            'order_before_days' => $request->order_before_days,
-            'possible_delivery_days' => $request->possible_delivery_days,
             'notes' => $request->notes,
         ];
 
