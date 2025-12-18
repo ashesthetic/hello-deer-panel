@@ -504,6 +504,10 @@ class DashboardController extends Controller
         $totalStoreSaleCalculated = $dailySales->sum('store_sale_calculated');
         $totalStoreSaleProfit = ($totalStoreSaleCalculated * $storeSalePercentage) / 100;
 
+        // Calculate average per day
+        $dayCount = $dailySales->count();
+        $avgTotalSalePerDay = $dayCount > 0 ? $totalSale / $dayCount : 0;
+
         return [
             'has_data' => true,
             'period_start' => $lastWeekStart->format('Y-m-d'),
@@ -513,6 +517,9 @@ class DashboardController extends Controller
             'formatted_profit' => '$' . number_format($totalProfit, 2),
             'total_sale' => $totalSale,
             'formatted_total_sale' => '$' . number_format($totalSale, 2),
+            'avg_total_sale_per_day' => $avgTotalSalePerDay,
+            'formatted_avg_total_sale_per_day' => '$' . number_format($avgTotalSalePerDay, 2),
+            'day_count' => $dayCount,
             'debit_sale' => $totalDebit,
             'formatted_debit_sale' => '$' . number_format($totalDebit, 2),
             'credit_sale' => $totalCredit,
@@ -650,6 +657,10 @@ class DashboardController extends Controller
         $totalStoreSaleCalculated = $dailySales->sum('store_sale_calculated');
         $totalStoreSaleProfit = ($totalStoreSaleCalculated * $storeSalePercentage) / 100;
 
+        // Calculate average per day
+        $dayCount = $dailySales->count();
+        $avgTotalSalePerDay = $dayCount > 0 ? $totalSale / $dayCount : 0;
+
         return [
             'has_data' => true,
             'period_start' => $currentWeekStart->format('Y-m-d'),
@@ -659,6 +670,9 @@ class DashboardController extends Controller
             'formatted_profit' => '$' . number_format($totalProfit, 2),
             'total_sale' => $totalSale,
             'formatted_total_sale' => '$' . number_format($totalSale, 2),
+            'avg_total_sale_per_day' => $avgTotalSalePerDay,
+            'formatted_avg_total_sale_per_day' => '$' . number_format($avgTotalSalePerDay, 2),
+            'day_count' => $dayCount,
             'debit_sale' => $totalDebit,
             'formatted_debit_sale' => '$' . number_format($totalDebit, 2),
             'credit_sale' => $totalCredit,
@@ -796,6 +810,10 @@ class DashboardController extends Controller
         $totalStoreSaleCalculated = $dailySales->sum('store_sale_calculated');
         $totalStoreSaleProfit = ($totalStoreSaleCalculated * $storeSalePercentage) / 100;
 
+        // Calculate average per day
+        $dayCount = $dailySales->count();
+        $avgTotalSalePerDay = $dayCount > 0 ? $totalSale / $dayCount : 0;
+
         return [
             'has_data' => true,
             'period_start' => $lastMonthStart->format('Y-m-d'),
@@ -805,6 +823,9 @@ class DashboardController extends Controller
             'formatted_profit' => '$' . number_format($totalProfit, 2),
             'total_sale' => $totalSale,
             'formatted_total_sale' => '$' . number_format($totalSale, 2),
+            'avg_total_sale_per_day' => $avgTotalSalePerDay,
+            'formatted_avg_total_sale_per_day' => '$' . number_format($avgTotalSalePerDay, 2),
+            'day_count' => $dayCount,
             'debit_sale' => $totalDebit,
             'formatted_debit_sale' => '$' . number_format($totalDebit, 2),
             'credit_sale' => $totalCredit,
@@ -942,6 +963,10 @@ class DashboardController extends Controller
         $totalStoreSaleCalculated = $dailySales->sum('store_sale_calculated');
         $totalStoreSaleProfit = ($totalStoreSaleCalculated * $storeSalePercentage) / 100;
 
+        // Calculate average per day
+        $dayCount = $dailySales->count();
+        $avgTotalSalePerDay = $dayCount > 0 ? $totalSale / $dayCount : 0;
+
         return [
             'has_data' => true,
             'period_start' => $currentMonthStart->format('Y-m-d'),
@@ -951,6 +976,9 @@ class DashboardController extends Controller
             'formatted_profit' => '$' . number_format($totalProfit, 2),
             'total_sale' => $totalSale,
             'formatted_total_sale' => '$' . number_format($totalSale, 2),
+            'avg_total_sale_per_day' => $avgTotalSalePerDay,
+            'formatted_avg_total_sale_per_day' => '$' . number_format($avgTotalSalePerDay, 2),
+            'day_count' => $dayCount,
             'debit_sale' => $totalDebit,
             'formatted_debit_sale' => '$' . number_format($totalDebit, 2),
             'credit_sale' => $totalCredit,
