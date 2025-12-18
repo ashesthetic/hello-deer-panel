@@ -12,8 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('daily_fuels', function (Blueprint $table) {
-            // Drop the old columns
-            $table->dropColumn(['fuel_type', 'quantity', 'price_per_liter', 'total_amount']);
+            // Check if columns exist before dropping them
+            if (Schema::hasColumn('daily_fuels', 'fuel_type')) {
+                $table->dropColumn(['fuel_type', 'quantity', 'price_per_liter', 'total_amount']);
+            }
             
             // Add new columns for each fuel type
             $table->decimal('regular_quantity', 10, 2)->default(0)->after('date');
@@ -36,7 +38,11 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->after('id')->constrained()->onDelete('set null');
             
             // Update unique constraint to just date since we now have all fuel types in one row
-            $table->dropUnique(['date', 'fuel_type']);
+            // Check if the unique constraint exists before dropping it
+            $indexes = Schema::getConnection()->getDoctrineSchemaManager()->listTableIndexes('daily_fuels');
+            if (array_key_exists('daily_fuels_date_fuel_type_unique', $indexes)) {
+                $table->dropUnique(['date', 'fuel_type']);
+            }
             $table->unique('date');
         });
     }
