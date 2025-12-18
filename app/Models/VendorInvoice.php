@@ -120,6 +120,14 @@ class VendorInvoice extends Model
     }
 
     /**
+     * Scope for filtering by reference
+     */
+    public function scopeByReference($query, $reference)
+    {
+        return $query->where('reference', $reference);
+    }
+
+    /**
      * Scope for filtering by vendor
      */
     public function scopeByVendor($query, $vendorId)

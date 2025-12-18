@@ -22,6 +22,7 @@ class VendorInvoiceController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
         $type = $request->input('type');
+        $reference = $request->input('reference');
         $vendorId = $request->input('vendor_id');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
@@ -54,6 +55,11 @@ class VendorInvoiceController extends Controller
         // Add type filter
         if ($type) {
             $query->byType($type);
+        }
+
+        // Add reference filter
+        if ($reference) {
+            $query->byReference($reference);
         }
 
         // Add vendor filter
