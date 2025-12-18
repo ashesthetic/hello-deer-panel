@@ -124,8 +124,9 @@ class Transaction extends Model
      */
     public static function createFromVendorInvoice(VendorInvoice $invoice, User $user): self
     {
-        // Determine transaction type - vendor invoices are usually expenses
-        $type = 'expense';
+        // Determine transaction type based on invoice type
+        // Income invoice = income transaction, Expense invoice = expense transaction
+        $type = strtolower($invoice->type);
         
         // If the invoice has a specific bank account, use it
         $bankAccount = null;
@@ -159,8 +160,12 @@ class Transaction extends Model
             'user_id' => $user->id,
         ]);
         
-        // Update bank account balance (expense decreases balance)
-        $bankAccount->decrement('balance', $invoice->total);
+        // Update bank account balance based on transaction type
+        if ($type === 'income') {
+            $bankAccount->increment('balance', $invoice->total);
+        } else {
+            $bankAccount->decrement('balance', $invoice->total);
+        }
         
         return $transaction;
     }

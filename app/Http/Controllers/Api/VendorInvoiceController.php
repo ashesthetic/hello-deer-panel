@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\VendorInvoice;
 use App\Models\Vendor;
+use App\Models\BankAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -109,6 +110,7 @@ class VendorInvoiceController extends Controller
             'reference' => 'required|in:Vendor,Ash,Nafi',
             'payment_date' => 'nullable|date|required_if:status,Paid',
             'payment_method' => 'nullable|in:Card,Cash,Bank|required_if:status,Paid',
+            'bank_account_id' => 'nullable|exists:bank_accounts,id|required_if:status,Paid',
             'invoice_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'gst' => 'required|numeric|min:0',
             'total' => 'required|numeric|min:0',
@@ -125,6 +127,7 @@ class VendorInvoiceController extends Controller
             'reference' => $request->reference,
             'payment_date' => $request->payment_date,
             'payment_method' => $request->payment_method,
+            'bank_account_id' => $request->bank_account_id,
             'gst' => $request->gst,
             'total' => $request->total,
             'notes' => $request->notes,
@@ -181,6 +184,7 @@ class VendorInvoiceController extends Controller
             'reference' => 'required|in:Vendor,Ash,Nafi',
             'payment_date' => 'nullable|date|required_if:status,Paid',
             'payment_method' => 'nullable|in:Card,Cash,Bank|required_if:status,Paid',
+            'bank_account_id' => 'nullable|exists:bank_accounts,id|required_if:status,Paid',
             'invoice_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'gst' => 'required|numeric|min:0',
             'total' => 'required|numeric|min:0',
@@ -197,6 +201,7 @@ class VendorInvoiceController extends Controller
             'reference' => $request->reference,
             'payment_date' => $request->payment_date,
             'payment_method' => $request->payment_method,
+            'bank_account_id' => $request->bank_account_id,
             'gst' => $request->gst,
             'total' => $request->total,
             'notes' => $request->notes,
@@ -261,6 +266,32 @@ class VendorInvoiceController extends Controller
         $vendors = $query->orderBy('name')->get();
         
         return response()->json($vendors);
+    }
+
+    /**
+     * Get bank accounts for dropdown
+     */
+    public function getBankAccounts(Request $request)
+    {
+        $user = $request->user();
+        
+        $query = BankAccount::select('id', 'bank_name', 'account_name', 'account_number')
+            ->where('is_active', true);
+        
+        // Apply ACL based on user role
+        if ($user->isEditor()) {
+            $query->where('user_id', $user->id);
+        }
+        
+        $bankAccounts = $query->orderBy('bank_name')->get();
+        
+        // Add formatted display name
+        $bankAccounts = $bankAccounts->map(function ($account) {
+            $account->display_name = "{$account->bank_name} - {$account->account_name} (...{$account->masked_account_number})";
+            return $account;
+        });
+        
+        return response()->json($bankAccounts);
     }
 
     /**
