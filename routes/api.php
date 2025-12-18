@@ -85,12 +85,16 @@ Route::get('/work-schedules/employees-without-current-week', [\App\Http\Controll
 Route::get('/work-schedules/week-options', [\App\Http\Controllers\Api\WorkScheduleController::class, 'getWeekOptions'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/employees/{employee}/work-schedules', [\App\Http\Controllers\Api\WorkScheduleController::class, 'employeeSchedules'])->middleware(['auth:sanctum', 'not.staff']);
 
-// Vendor Invoice routes
+// Vendor Invoice routes (Non-staff users only)
 Route::get('/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/vendor-invoices/bank-accounts', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getBankAccounts'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/vendor-invoices/{vendorInvoice}/download', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'downloadFile'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/vendor-invoices/{vendorInvoice}/view-link', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getFileViewLink'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('vendor-invoices', \App\Http\Controllers\Api\VendorInvoiceController::class)->middleware(['auth:sanctum', 'not.staff']);
+
+// Staff-specific Vendor Invoice routes (Limited access)
+Route::get('/staff/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware(['auth:sanctum']);
+Route::post('/staff/vendor-invoices', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'storeForStaff'])->middleware(['auth:sanctum']);
 
 // Provider routes
 Route::apiResource('providers', \App\Http\Controllers\Api\ProviderController::class)->middleware(['auth:sanctum', 'not.staff']);

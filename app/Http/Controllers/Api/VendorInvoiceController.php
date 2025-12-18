@@ -174,6 +174,84 @@ class VendorInvoiceController extends Controller
     }
 
     /**
+     * Store a newly created vendor invoice for Staff users (Unpaid only)
+     */
+    public function storeForStaff(Request $request)
+    {
+        $user = $request->user();
+        
+        if (!$user->canCreate()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'vendor_id' => 'required|exists:vendors,id',
+            'invoice_number' => 'nullable|string|max:255',
+            'invoice_date' => 'required|date',
+            'type' => 'required|in:Income,Expense',
+            'reference' => 'required|in:Vendor,Ash,Nafi',
+            'invoice_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'gst' => 'required|numeric|min:0',
+            'total' => 'required|numeric|min:0',
+            'notes' => 'nullable|string|max:1000',
+            'description' => 'nullable|string',
+        ]);
+
+        $data = [
+            'vendor_id' => $request->vendor_id,
+            'invoice_number' => $request->invoice_number,
+            'invoice_date' => $request->invoice_date,
+            'status' => 'Unpaid', // Force unpaid status for staff
+            'type' => $request->type,
+            'reference' => $request->reference,
+            'payment_date' => null, // No payment date for unpaid invoices
+            'payment_method' => null, // No payment method for unpaid invoices
+            'bank_account_id' => null, // No bank account for unpaid invoices
+            'gst' => $request->gst,
+            'total' => $request->total,
+            'notes' => $request->notes,
+            'description' => $request->description,
+            'user_id' => $user->id,
+        ];
+
+        // Handle file upload
+        if ($request->hasFile('invoice_file')) {
+            $file = $request->file('invoice_file');
+            $fileName = 'vendor_invoice_' . time() . '_' . $file->getClientOriginalName();
+            
+            $googleDriveService = new GoogleDriveService();
+            
+            // Check if Google Drive is authenticated
+            if (!$googleDriveService->isAuthenticated()) {
+                return response()->json([
+                    'message' => 'Google Drive authentication required',
+                    'error_code' => 'GOOGLE_AUTH_REQUIRED'
+                ], 401);
+            }
+            
+            $uploadResult = $googleDriveService->uploadFile($file, $fileName, $request->invoice_date);
+            
+            if ($uploadResult) {
+                $data['google_drive_file_id'] = $uploadResult['file_id'];
+                $data['google_drive_file_name'] = $uploadResult['name'];
+                $data['google_drive_web_view_link'] = $uploadResult['web_view_link'];
+                $data['invoice_file_path'] = null; // Clear local path as we're using Google Drive
+            } else {
+                return response()->json([
+                    'message' => 'Failed to upload file to Google Drive'
+                ], 500);
+            }
+        }
+
+        $invoice = VendorInvoice::create($data);
+
+        return response()->json([
+            'message' => 'Vendor invoice created successfully (Unpaid)',
+            'data' => $invoice->load(['vendor', 'user'])
+        ], 201);
+    }
+
+    /**
      * Display the specified vendor invoice
      */
     public function show(Request $request, VendorInvoice $vendorInvoice)
