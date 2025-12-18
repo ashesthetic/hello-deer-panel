@@ -104,6 +104,34 @@ class DailySaleController extends Controller
     }
 
     /**
+     * Get sales for a specific month
+     */
+    public function getByMonth(Request $request, $year = null, $month = null)
+    {
+        $year = $year ?: date('Y');
+        $month = $month ?: date('n');
+        
+        $dailySales = DailySale::whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->orderBy('date', 'asc')
+            ->get();
+        
+        // Add calculated fields to each sale
+        $dailySales->transform(function ($sale) {
+            $sale->total_product_sale = $sale->fuel_sale + $sale->store_sale + $sale->gst;
+            $sale->total_counter_sale = $sale->card + $sale->cash + $sale->coupon + $sale->delivery;
+            $sale->grand_total = $sale->total_product_sale + $sale->total_counter_sale;
+            return $sale;
+        });
+        
+        return response()->json([
+            'data' => $dailySales,
+            'year' => $year,
+            'month' => $month
+        ]);
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(DailySale $dailySale)
