@@ -64,4 +64,31 @@ class Employee extends Model
     {
         return $this->hasMany(WorkHour::class);
     }
+
+    public function workSchedules()
+    {
+        return $this->hasMany(WorkSchedule::class);
+    }
+
+    /**
+     * Get the current week's work schedule
+     */
+    public function getCurrentWeekSchedule()
+    {
+        $today = \App\Utils\TimezoneUtil::today();
+        $weekStart = Carbon::parse($today)->startOfWeek();
+        
+        return $this->workSchedules()
+            ->where('week_start_date', $weekStart->format('Y-m-d'))
+            ->active()
+            ->first();
+    }
+
+    /**
+     * Check if employee has a schedule for the current week
+     */
+    public function hasCurrentWeekSchedule(): bool
+    {
+        return $this->getCurrentWeekSchedule() !== null;
+    }
 } 

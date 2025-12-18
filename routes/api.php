@@ -59,6 +59,14 @@ Route::get('/work-hours/recent', [\App\Http\Controllers\Api\WorkHourController::
 Route::get('/work-hours/summary', [\App\Http\Controllers\Api\WorkHourController::class, 'summary'])->middleware('auth:sanctum');
 Route::get('/employees/{employee}/work-hours', [\App\Http\Controllers\Api\WorkHourController::class, 'employeeHours'])->middleware('auth:sanctum');
 
+// Work Schedule routes
+Route::apiResource('work-schedules', \App\Http\Controllers\Api\WorkScheduleController::class)->middleware('auth:sanctum');
+Route::get('/work-schedules/current-week', [\App\Http\Controllers\Api\WorkScheduleController::class, 'currentWeekSchedules'])->middleware('auth:sanctum');
+Route::get('/work-schedules/stats', [\App\Http\Controllers\Api\WorkScheduleController::class, 'stats'])->middleware('auth:sanctum');
+Route::get('/work-schedules/employees-without-current-week', [\App\Http\Controllers\Api\WorkScheduleController::class, 'employeesWithoutCurrentWeekSchedule'])->middleware('auth:sanctum');
+Route::get('/work-schedules/week-options', [\App\Http\Controllers\Api\WorkScheduleController::class, 'getWeekOptions'])->middleware('auth:sanctum');
+Route::get('/employees/{employee}/work-schedules', [\App\Http\Controllers\Api\WorkScheduleController::class, 'employeeSchedules'])->middleware('auth:sanctum');
+
 // Vendor Invoice routes
 Route::get('/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware('auth:sanctum');
 Route::get('/vendor-invoices/{vendorInvoice}/download', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'downloadFile'])->middleware('auth:sanctum');
