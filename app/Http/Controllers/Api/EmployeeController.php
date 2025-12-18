@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Carbon\Carbon;
 
 class EmployeeController extends Controller
 {
@@ -226,6 +227,117 @@ class EmployeeController extends Controller
                 'active' => $activeEmployees,
                 'inactive' => $inactiveEmployees,
                 'avg_tenure' => '1.2 yrs' // This would be calculated in a real app
+            ]
+        ]);
+    }
+
+    /**
+     * Get employee earnings for current and next pay periods
+     */
+    public function earnings()
+    {
+        // Calculate current pay period dates
+        $firstPayDay = Carbon::parse('2025-07-24'); // First pay day
+        $today = Carbon::now();
+        
+        // Find the current pay period
+        // Since first pay day is July 24, 2025, we need to work backwards
+        // Current period: July 10-23, 2025 (pay day: July 24)
+        // Previous period: June 26-July 9, 2025 (pay day: July 10)
+        
+        // Calculate how many pay periods have passed since the first pay day
+        $weeksSinceFirstPay = $today->diffInWeeks($firstPayDay, false);
+        $payPeriodsPassed = floor($weeksSinceFirstPay / 2);
+        
+        // Current pay day is the first pay day minus the passed pay periods
+        $currentPayDay = $firstPayDay->copy()->subWeeks($payPeriodsPassed * 2);
+        
+        // Calculate the work period (2 weeks before pay day, keeping one week in hand)
+        // For July 24 pay day: period is July 4-17 (3 weeks before + 1 day to 1 week before)
+        $currentPeriodStart = $currentPayDay->copy()->subWeeks(3)->addDay();
+        $currentPeriodEnd = $currentPayDay->copy()->subWeek()->subDay();
+        
+        // Get next pay day and period
+        $nextPayDay = $currentPayDay->copy()->addWeeks(2);
+        // For August 7 pay day: period is July 18-31 (3 weeks before next pay day + 1 day to 1 week before next pay day)
+        $nextPeriodStart = $nextPayDay->copy()->subWeeks(3)->addDay();
+        $nextPeriodEnd = $nextPayDay->copy()->subWeek()->subDay();
+        
+        // Get all active employees
+        $employees = Employee::where('status', 'active')->get();
+        
+        $currentEarningsData = [];
+        $nextEarningsData = [];
+        
+        foreach ($employees as $employee) {
+            // Get work hours for current period
+            $currentWorkHours = $employee->workHours()
+                ->whereBetween('date', [$currentPeriodStart->format('Y-m-d'), $currentPeriodEnd->format('Y-m-d')])
+                ->get();
+            
+            $currentTotalHours = $currentWorkHours->sum('total_hours');
+            $currentTotalEarnings = $currentTotalHours * $employee->hourly_rate;
+            
+            $currentEarningsData[] = [
+                'id' => $employee->id,
+                'full_legal_name' => $employee->full_legal_name,
+                'preferred_name' => $employee->preferred_name,
+                'position' => $employee->position,
+                'department' => $employee->department,
+                'hourly_rate' => $employee->hourly_rate,
+                'total_hours' => round($currentTotalHours, 2),
+                'total_earnings' => round($currentTotalEarnings, 2),
+                'work_days' => $currentWorkHours->count(),
+                'period_start' => $currentPeriodStart->format('Y-m-d'),
+                'period_end' => $currentPeriodEnd->format('Y-m-d'),
+                'pay_day' => $currentPayDay->format('Y-m-d')
+            ];
+            
+            // Get work hours for next period
+            $nextWorkHours = $employee->workHours()
+                ->whereBetween('date', [$nextPeriodStart->format('Y-m-d'), $nextPeriodEnd->format('Y-m-d')])
+                ->get();
+            
+            $nextTotalHours = $nextWorkHours->sum('total_hours');
+            $nextTotalEarnings = $nextTotalHours * $employee->hourly_rate;
+            
+            $nextEarningsData[] = [
+                'id' => $employee->id,
+                'full_legal_name' => $employee->full_legal_name,
+                'preferred_name' => $employee->preferred_name,
+                'position' => $employee->position,
+                'department' => $employee->department,
+                'hourly_rate' => $employee->hourly_rate,
+                'total_hours' => round($nextTotalHours, 2),
+                'total_earnings' => round($nextTotalEarnings, 2),
+                'work_days' => $nextWorkHours->count(),
+                'period_start' => $nextPeriodStart->format('Y-m-d'),
+                'period_end' => $nextPeriodEnd->format('Y-m-d'),
+                'pay_day' => $nextPayDay->format('Y-m-d')
+            ];
+        }
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'current_period' => [
+                    'employees' => $currentEarningsData,
+                    'period_info' => [
+                        'period_start' => $currentPeriodStart->format('Y-m-d'),
+                        'period_end' => $currentPeriodEnd->format('Y-m-d'),
+                        'pay_day' => $currentPayDay->format('Y-m-d'),
+                        'days_until_pay' => floor($today->diffInDays($currentPayDay, false))
+                    ]
+                ],
+                'next_period' => [
+                    'employees' => $nextEarningsData,
+                    'period_info' => [
+                        'period_start' => $nextPeriodStart->format('Y-m-d'),
+                        'period_end' => $nextPeriodEnd->format('Y-m-d'),
+                        'pay_day' => $nextPayDay->format('Y-m-d'),
+                        'days_until_pay' => floor($today->diffInDays($nextPayDay, false))
+                    ]
+                ]
             ]
         ]);
     }
