@@ -16,22 +16,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Get or create a default bank account for historical resolutions
+        // Use the first active bank account for historical resolutions
         $defaultBankAccount = BankAccount::where('is_active', true)->first();
         
         if (!$defaultBankAccount) {
-            // Create a default bank account for historical resolutions
-            $defaultBankAccount = BankAccount::create([
-                'bank_name' => 'System Generated Bank',
-                'account_name' => 'Historical Resolutions Account',
-                'account_type' => 'Business',
-                'account_number' => '****-HISTORICAL',
-                'balance' => 0,
-                'currency' => 'CAD',
-                'is_active' => true,
-                'notes' => 'Automatically created for resolving historical safedrops and cash in hand amounts',
-                'user_id' => User::where('role', 'admin')->first()?->id ?? 1
-            ]);
+            throw new Exception('No active bank accounts found. Please create a bank account first.');
         }
 
         // Get the first admin user to assign as the resolver
