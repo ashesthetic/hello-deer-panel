@@ -22,10 +22,10 @@ return new class extends Migration
         if (!$defaultBankAccount) {
             // Create a default bank account for historical resolutions
             $defaultBankAccount = BankAccount::create([
+                'bank_name' => 'System Generated Bank',
                 'account_name' => 'Historical Resolutions Account',
                 'account_type' => 'checking',
                 'account_number' => '****-HISTORICAL',
-                'institution_name' => 'System Generated',
                 'balance' => 0,
                 'currency' => 'CAD',
                 'is_active' => true,
