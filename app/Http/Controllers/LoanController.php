@@ -177,6 +177,28 @@ class LoanController extends Controller
     }
 
     /**
+     * Get payment history for a loan.
+     */
+    public function paymentHistory(string $id)
+    {
+        $loan = Loan::findOrFail($id);
+        
+        // Get transactions that reference this loan in the description
+        // Transactions are identified by having the loan name or ID in description
+        $transactions = \App\Models\Transaction::where(function($query) use ($loan) {
+            $query->where('description', 'like', '%' . $loan->name . '%')
+                  ->orWhere('reference_number', 'like', 'LOAN-' . $loan->id . '-%');
+        })
+        ->orderBy('transaction_date', 'desc')
+        ->with(['bankAccount', 'user'])
+        ->get();
+        
+        return response()->json([
+            'data' => $transactions
+        ]);
+    }
+
+    /**
      * Process a loan payment (deposit or withdrawal).
      */
     public function processPayment(Request $request, string $id)
