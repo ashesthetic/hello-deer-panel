@@ -148,7 +148,7 @@ class GoogleDriveService
      *
      * @return array|null
      */
-    private function getStoredAccessToken(): ?array
+    public function getStoredAccessToken(): ?array
     {
         // Get current user
         $user = Auth::user();
@@ -164,14 +164,8 @@ class GoogleDriveService
             ->first();
 
         if ($googleToken) {
-            // If token exists but is expired, try to refresh it
-            if ($googleToken->isExpired() && $googleToken->refresh_token) {
-                if ($this->refreshTokenFromDatabase($googleToken)) {
-                    // Reload the token after refresh
-                    $googleToken->refresh();
-                }
-            }
-            
+            // Return the token array - expiry will be checked by the Google Client
+            // when setAccessToken() is called, ensuring consistent expiry handling
             return $googleToken->toGoogleTokenArray();
         }
 
