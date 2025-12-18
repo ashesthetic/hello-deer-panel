@@ -19,6 +19,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+// Dashboard routes
+Route::get('/dashboard/stats', [\App\Http\Controllers\Api\DashboardController::class, 'getStats'])->middleware('auth:sanctum');
+
 // Authentication routes
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
