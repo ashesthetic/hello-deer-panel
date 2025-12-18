@@ -16,10 +16,33 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Check if resolutions already exist (migration already ran)
+        $existingResolutions = SafedropResolution::count();
+        if ($existingResolutions > 0) {
+            echo "Historical resolutions already exist ({$existingResolutions} found). Skipping migration.\n";
+            return;
+        }
+        
         // Use the first active bank account for historical resolutions
         $defaultBankAccount = BankAccount::where('is_active', true)->first();
         
         if (!$defaultBankAccount) {
+            echo "\n❌ ERROR: No active bank accounts found!\n";
+            echo "Please run the setup script first:\n";
+            echo "   php setup_live_server.php\n";
+            echo "Or create bank accounts manually through the admin interface.\n\n";
+            
+            echo "Available bank accounts:\n";
+            $allBankAccounts = BankAccount::all(['id', 'account_name', 'is_active']);
+            if ($allBankAccounts->count() > 0) {
+                foreach ($allBankAccounts as $account) {
+                    $status = $account->is_active ? 'Active' : 'Inactive';
+                    echo "- ID: {$account->id}, Name: {$account->account_name}, Status: {$status}\n";
+                }
+            } else {
+                echo "- No bank accounts found in database\n";
+            }
+            
             throw new Exception('No active bank accounts found. Please create a bank account first.');
         }
 
