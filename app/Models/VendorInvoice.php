@@ -15,6 +15,7 @@ class VendorInvoice extends Model
         'invoice_date',
         'status',
         'type',
+        'reference',
         'payment_date',
         'payment_method',
         'invoice_file_path',
