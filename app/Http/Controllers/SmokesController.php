@@ -39,7 +39,6 @@ class SmokesController extends Controller
         $validator = Validator::make($request->all(), [
             'date' => 'required|date',
             'item' => 'required|string|max:255',
-            'shift' => 'required|in:Morning,Evening',
             'start' => 'required|numeric|min:0',
             'end' => 'required|numeric|min:0',
             'added' => 'nullable|numeric|min:0',
@@ -55,7 +54,6 @@ class SmokesController extends Controller
         $smoke = Smokes::create([
             'date' => $request->date,
             'item' => $request->item,
-            'shift' => $request->shift,
             'start' => $request->start,
             'end' => $request->end,
             'added' => $request->added ?? 0,
@@ -89,7 +87,6 @@ class SmokesController extends Controller
         $validator = Validator::make($request->all(), [
             'date' => 'sometimes|required|date',
             'item' => 'sometimes|required|string|max:255',
-            'shift' => 'sometimes|required|in:Morning,Evening',
             'start' => 'sometimes|required|numeric|min:0',
             'end' => 'sometimes|required|numeric|min:0',
             'added' => 'nullable|numeric|min:0',
@@ -102,7 +99,7 @@ class SmokesController extends Controller
             ], 422);
         }
 
-        $smoke->update($request->only(['date', 'item', 'shift', 'start', 'end', 'added']));
+        $smoke->update($request->only(['date', 'item', 'start', 'end', 'added']));
 
         return response()->json([
             'message' => 'Smoke entry updated successfully',
