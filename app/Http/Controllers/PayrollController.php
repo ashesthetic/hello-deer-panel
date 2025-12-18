@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payroll;
+use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use Carbon\Carbon;
 
 class PayrollController extends Controller
 {
@@ -319,5 +322,79 @@ class PayrollController extends Controller
         ];
         
         return response()->json($summary);
+    }
+
+    /**
+     * Email pay stub to employee
+     */
+    public function emailPayStub(Request $request, string $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'pdf_data' => 'required|string', // Base64 encoded PDF
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Get the payroll record with employee
+        $payroll = Payroll::with('employee')->find($id);
+
+        if (!$payroll) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payroll record not found'
+            ], 404);
+        }
+
+        $employee = $payroll->employee;
+
+        if (!$employee) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Employee not found'
+            ], 404);
+        }
+
+        if (!$employee->email) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Employee does not have an email address'
+            ], 400);
+        }
+
+        // Decode PDF data
+        $pdfData = base64_decode($request->pdf_data);
+        
+        // Format pay period for email subject
+        $payDate = Carbon::parse($payroll->pay_date);
+        $payPeriod = $payroll->pay_period ?: $payDate->format('M d, Y');
+
+        try {
+            Mail::raw("Hello {$employee->preferred_name},\n\nPlease find attached your pay stub for the pay period: {$payPeriod}.\n\nBest regards,\nHello Deer!", function ($message) use ($employee, $payPeriod, $pdfData) {
+                $message->to($employee->email)
+                    ->subject("Pay Stub - {$payPeriod}")
+                    ->from(env('MAIL_FROM_ADDRESS', 'noreply@example.com'), 'Hello Deer!')
+                    ->attachData($pdfData, 'pay-stub.pdf', [
+                        'mime' => 'application/pdf',
+                    ]);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => "Pay stub sent to {$employee->email}",
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to send pay stub email to ' . $employee->email . ': ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send email: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
