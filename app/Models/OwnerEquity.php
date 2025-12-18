@@ -4,36 +4,36 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Utils\TimezoneUtil;
 
 class OwnerEquity extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
-        'owner_id',
-        'transaction_type',
-        'amount',
-        'transaction_date',
-        'reference_number',
-        'payment_method',
+        'date',
         'description',
-        'notes',
-        'user_id',
+        'type',
+        'amount',
+        'note',
+        'owner_id',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'transaction_date' => 'date',
+        'date' => 'date',
     ];
 
     /**
      * The accessors to append to the model's array form.
      */
     protected $appends = [
-        'formatted_transaction_date',
+        'formatted_date',
         'formatted_amount',
-        'transaction_type_display',
-        'is_positive',
-        'is_negative',
+        'type_display',
+        'is_investment',
+        'is_withdrawal',
     ];
 
     /**
@@ -42,14 +42,6 @@ class OwnerEquity extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(Owner::class);
-    }
-
-    /**
-     * Get the user who created this equity transaction
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
     }
 
     /**
@@ -65,7 +57,7 @@ class OwnerEquity extends Model
      */
     public function scopeByType($query, $type)
     {
-        return $query->where('transaction_type', $type);
+        return $query->where('type', $type);
     }
 
     /**
@@ -73,23 +65,15 @@ class OwnerEquity extends Model
      */
     public function scopeByDateRange($query, $startDate, $endDate)
     {
-        return $query->whereBetween('transaction_date', [$startDate, $endDate]);
+        return $query->whereBetween('date', [$startDate, $endDate]);
     }
 
     /**
-     * Scope to get transactions by user
+     * Get the formatted date in Alberta timezone
      */
-    public function scopeByUser($query, $userId)
+    public function getFormattedDateAttribute(): string
     {
-        return $query->where('user_id', $userId);
-    }
-
-    /**
-     * Get the formatted transaction date in Alberta timezone
-     */
-    public function getFormattedTransactionDateAttribute(): string
-    {
-        return TimezoneUtil::formatDate($this->transaction_date);
+        return TimezoneUtil::formatDate($this->date);
     }
 
     /**
@@ -101,26 +85,26 @@ class OwnerEquity extends Model
     }
 
     /**
-     * Get the transaction type display name
+     * Get the type display name
      */
-    public function getTransactionTypeDisplayAttribute(): string
+    public function getTypeDisplayAttribute(): string
     {
-        return ucfirst($this->transaction_type);
+        return ucfirst($this->type);
     }
 
     /**
-     * Check if this is a positive transaction (contribution or distribution)
+     * Check if this is an investment transaction
      */
-    public function getIsPositiveAttribute(): bool
+    public function getIsInvestmentAttribute(): bool
     {
-        return in_array($this->transaction_type, ['contribution', 'distribution']);
+        return $this->type === 'investment';
     }
 
     /**
-     * Check if this is a negative transaction (withdrawal or adjustment)
+     * Check if this is a withdrawal transaction
      */
-    public function getIsNegativeAttribute(): bool
+    public function getIsWithdrawalAttribute(): bool
     {
-        return in_array($this->transaction_type, ['withdrawal', 'adjustment']);
+        return $this->type === 'withdrawal';
     }
 }

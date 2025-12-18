@@ -108,7 +108,7 @@ class OwnerController extends Controller
         }
 
         $owner->load(['user', 'equityTransactions' => function($query) {
-            $query->orderBy('transaction_date', 'desc')->limit(10);
+            $query->orderBy('date', 'desc')->limit(10);
         }]);
 
         return response()->json($owner);
