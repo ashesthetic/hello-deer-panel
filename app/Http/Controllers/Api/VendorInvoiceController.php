@@ -144,7 +144,10 @@ class VendorInvoiceController extends Controller
         // Handle file upload
         if ($request->hasFile('invoice_file')) {
             $file = $request->file('invoice_file');
-            $fileName = 'vendor_invoice_' . time() . '_' . $file->getClientOriginalName();
+            $vendor = Vendor::find($request->vendor_id);
+            $day = date('d', strtotime($request->invoice_date));
+            $vendorName = str_replace(' ', '_', $vendor->name);
+            $fileName = $day . '_' . $vendorName . '_' . time() . '_' . $file->getClientOriginalName();
             
             $googleDriveService = new GoogleDriveService();
             
@@ -223,7 +226,10 @@ class VendorInvoiceController extends Controller
         // Handle file upload
         if ($request->hasFile('invoice_file')) {
             $file = $request->file('invoice_file');
-            $fileName = 'vendor_invoice_' . time() . '_' . $file->getClientOriginalName();
+            $vendor = Vendor::find($request->vendor_id);
+            $day = date('d', strtotime($request->invoice_date));
+            $vendorName = str_replace(' ', '_', $vendor->name);
+            $fileName = $day . '_' . $vendorName . '_' . time() . '_' . $file->getClientOriginalName();
             
             $googleDriveService = new GoogleDriveService();
             
@@ -319,7 +325,10 @@ class VendorInvoiceController extends Controller
         // Handle file upload
         if ($request->hasFile('invoice_file')) {
             $file = $request->file('invoice_file');
-            $fileName = 'vendor_invoice_' . time() . '_' . $file->getClientOriginalName();
+            $vendor = Vendor::find($request->vendor_id);
+            $day = date('d', strtotime($request->invoice_date));
+            $vendorName = str_replace(' ', '_', $vendor->name);
+            $fileName = $day . '_' . $vendorName . '_' . time() . '_' . $file->getClientOriginalName();
             
             $googleDriveService = new GoogleDriveService();
             
