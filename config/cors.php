@@ -20,21 +20,32 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
+        // Development origins
         'http://localhost:3000',
         'http://localhost:3100',
         'http://127.0.0.1:3000',
         'http://127.0.0.1:3100',
         'http://localhost:8000',
         'http://127.0.0.1:8000',
+        
+        // Production origins
+        'https://hellodeer.ca',
+        'https://www.hellodeer.ca',
+        'https://app.hellodeer.ca',
+        'https://dashboard.hellodeer.ca',
+        'https://admin.hellodeer.ca',
+        
+        // API domain itself (for internal requests)
+        'https://api.hellodeer.ca',
     ],
 
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => ['*'],
 
-    'max_age' => 0,
+    'max_age' => 86400, // 24 hours
 
     'supports_credentials' => true,
 
