@@ -31,7 +31,7 @@ class SftFileProcessorService
             ];
         }
 
-                $aggregatedData = [
+        $aggregatedData = [
             // Sales totals
             'total_sales' => 0,
             'fuel_sales' => 0,
