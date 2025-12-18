@@ -1,0 +1,388 @@
+<?php
+
+namespace App\Services;
+
+use Google\Client;
+use Google\Service\Drive;
+use Google\Service\Drive\DriveFile;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Cache;
+
+class GoogleDriveService
+{
+    private $client;
+    private $service;
+    private $folderId;
+
+    public function __construct()
+    {
+        $this->client = new Client();
+        $this->client->setClientId(config('services.google.client_id'));
+        $this->client->setClientSecret(config('services.google.client_secret'));
+        $this->client->setRedirectUri(config('services.google.redirect_uri'));
+        $this->client->addScope(Drive::DRIVE);
+        $this->client->setAccessType('offline');
+        $this->client->setPrompt('consent');
+        
+        // Configure HTTP client for SSL certificate handling
+        $httpClientConfig = [];
+        
+        // In production, use proper SSL verification
+        if (app()->environment('production')) {
+            // Use system's CA bundle or specify a path
+            $httpClientConfig['verify'] = true;
+        } else {
+            // For local development, disable SSL verification
+            // Note: This is not secure for production use
+            $httpClientConfig['verify'] = false;
+        }
+        
+        $httpClient = new \GuzzleHttp\Client($httpClientConfig);
+        $this->client->setHttpClient($httpClient);
+        
+        // Load access token if available
+        $this->loadAccessToken();
+        
+        $this->service = new Drive($this->client);
+        $this->folderId = config('services.google.drive_folder_id');
+    }
+
+    /**
+     * Get the authorization URL for OAuth2 flow
+     *
+     * @return string
+     */
+    public function getAuthUrl(): string
+    {
+        return $this->client->createAuthUrl();
+    }
+
+    /**
+     * Exchange authorization code for access token
+     *
+     * @param string $code
+     * @return bool
+     */
+    public function authenticate(string $code): bool
+    {
+        try {
+            $token = $this->client->fetchAccessTokenWithAuthCode($code);
+            
+            if (isset($token['error'])) {
+                Log::error('OAuth2 authentication error', ['error' => $token['error']]);
+                return false;
+            }
+            
+            // Store the token
+            $this->storeAccessToken($token);
+            
+            Log::info('Google Drive OAuth2 authentication successful');
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to authenticate with Google Drive', [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Check if user is authenticated
+     *
+     * @return bool
+     */
+    public function isAuthenticated(): bool
+    {
+        $token = $this->getStoredAccessToken();
+        
+        if (!$token) {
+            return false;
+        }
+        
+        $this->client->setAccessToken($token);
+        
+        // Check if token is expired and try to refresh
+        if ($this->client->isAccessTokenExpired()) {
+            return $this->refreshAccessToken();
+        }
+        
+        return true;
+    }
+
+    /**
+     * Load access token from storage
+     */
+    private function loadAccessToken(): void
+    {
+        $token = $this->getStoredAccessToken();
+        
+        if ($token) {
+            $this->client->setAccessToken($token);
+            
+            // Check if token is expired and try to refresh
+            if ($this->client->isAccessTokenExpired()) {
+                $this->refreshAccessToken();
+            }
+        }
+    }
+
+    /**
+     * Get stored access token
+     *
+     * @return array|null
+     */
+    private function getStoredAccessToken(): ?array
+    {
+        // Try to get from cache first (for API requests)
+        $token = Cache::get('google_drive_token');
+        
+        // Fallback to session (for web requests)
+        if (!$token) {
+            $token = Session::get('google_drive_token');
+        }
+        
+        return $token;
+    }
+
+    /**
+     * Store access token
+     *
+     * @param array $token
+     */
+    private function storeAccessToken(array $token): void
+    {
+        // Store in cache with expiration
+        $expiresIn = $token['expires_in'] ?? 3600;
+        Cache::put('google_drive_token', $token, now()->addSeconds($expiresIn - 300)); // Subtract 5 minutes for safety
+        
+        // Also store in session for web requests
+        Session::put('google_drive_token', $token);
+    }
+
+    /**
+     * Refresh access token
+     *
+     * @return bool
+     */
+    private function refreshAccessToken(): bool
+    {
+        try {
+            $refreshToken = $this->client->getRefreshToken();
+            
+            if (!$refreshToken) {
+                Log::warning('No refresh token available');
+                return false;
+            }
+            
+            $newToken = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
+            
+            if (isset($newToken['error'])) {
+                Log::error('Token refresh error', ['error' => $newToken['error']]);
+                return false;
+            }
+            
+            // Store the new token
+            $this->storeAccessToken($newToken);
+            
+            Log::info('Google Drive access token refreshed successfully');
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to refresh Google Drive access token', [
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Revoke access token and clear stored tokens
+     */
+    public function revokeAccess(): void
+    {
+        try {
+            $this->client->revokeToken();
+        } catch (\Exception $e) {
+            Log::warning('Failed to revoke token', ['error' => $e->getMessage()]);
+        }
+        
+        // Clear stored tokens
+        Cache::forget('google_drive_token');
+        Session::forget('google_drive_token');
+        
+        Log::info('Google Drive access revoked');
+    }
+
+    /**
+     * Upload a file to Google Drive
+     *
+     * @param UploadedFile $file
+     * @param string $fileName
+     * @return array|null Returns array with file_id and web_view_link, or null on failure
+     */
+    public function uploadFile(UploadedFile $file, string $fileName): ?array
+    {
+        if (!$this->isAuthenticated()) {
+            Log::error('Google Drive not authenticated for file upload');
+            return null;
+        }
+
+        try {
+            Log::info('Starting Google Drive file upload', [
+                'file_name' => $fileName,
+                'file_size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'folder_id' => $this->folderId
+            ]);
+
+            $fileMetadata = new DriveFile([
+                'name' => $fileName
+            ]);
+            $fileMetadata->setParents([$this->folderId]);
+
+            $content = file_get_contents($file->getPathname());
+            $mimeType = $file->getMimeType();
+
+            $createdFile = $this->service->files->create(
+                $fileMetadata,
+                [
+                    'data' => $content,
+                    'mimeType' => $mimeType,
+                    'uploadType' => 'multipart',
+                    'fields' => 'id,webViewLink,name',
+                    'supportsAllDrives' => true
+                ]
+            );
+
+            // Make the file publicly viewable
+            $permission = new \Google\Service\Drive\Permission([
+                'type' => 'anyone',
+                'role' => 'reader'
+            ]);
+            $this->service->permissions->create($createdFile->getId(), $permission, [
+                'supportsAllDrives' => true
+            ]);
+
+            Log::info('File uploaded to Google Drive successfully', [
+                'file_id' => $createdFile->getId(),
+                'file_name' => $fileName,
+                'web_view_link' => $createdFile->getWebViewLink()
+            ]);
+
+            return [
+                'file_id' => $createdFile->getId(),
+                'web_view_link' => $createdFile->getWebViewLink(),
+                'name' => $createdFile->getName()
+            ];
+        } catch (\Google\Exception $e) {
+            Log::error('Google API error during file upload', [
+                'error' => $e->getMessage(),
+                'file_name' => $fileName,
+                'error_code' => $e->getCode(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        } catch (\Exception $e) {
+            Log::error('Failed to upload file to Google Drive', [
+                'error' => $e->getMessage(),
+                'file_name' => $fileName,
+                'error_type' => get_class($e),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Delete a file from Google Drive
+     *
+     * @param string $fileId
+     * @return bool
+     */
+    public function deleteFile(string $fileId): bool
+    {
+        if (!$this->isAuthenticated()) {
+            Log::error('Google Drive not authenticated for file deletion');
+            return false;
+        }
+
+        try {
+            $this->service->files->delete($fileId, [
+                'supportsAllDrives' => true
+            ]);
+            Log::info('File deleted from Google Drive', ['file_id' => $fileId]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to delete file from Google Drive', [
+                'error' => $e->getMessage(),
+                'file_id' => $fileId
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Get file metadata from Google Drive
+     *
+     * @param string $fileId
+     * @return array|null
+     */
+    public function getFileMetadata(string $fileId): ?array
+    {
+        if (!$this->isAuthenticated()) {
+            Log::error('Google Drive not authenticated for file metadata');
+            return null;
+        }
+
+        try {
+            $file = $this->service->files->get($fileId, [
+                'fields' => 'id,name,mimeType,size,webViewLink,webContentLink',
+                'supportsAllDrives' => true
+            ]);
+
+            return [
+                'id' => $file->getId(),
+                'name' => $file->getName(),
+                'mime_type' => $file->getMimeType(),
+                'size' => $file->getSize(),
+                'web_view_link' => $file->getWebViewLink(),
+                'web_content_link' => $file->getWebContentLink()
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to get file metadata from Google Drive', [
+                'error' => $e->getMessage(),
+                'file_id' => $fileId
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Download file content from Google Drive
+     *
+     * @param string $fileId
+     * @return string|null
+     */
+    public function downloadFile(string $fileId): ?string
+    {
+        if (!$this->isAuthenticated()) {
+            Log::error('Google Drive not authenticated for file download');
+            return null;
+        }
+
+        try {
+            $response = $this->service->files->get($fileId, [
+                'alt' => 'media',
+                'supportsAllDrives' => true
+            ]);
+            return $response->getBody()->getContents();
+        } catch (\Exception $e) {
+            Log::error('Failed to download file from Google Drive', [
+                'error' => $e->getMessage(),
+                'file_id' => $fileId
+            ]);
+            return null;
+        }
+    }
+}

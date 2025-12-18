@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\VendorInvoice;
 use App\Models\Vendor;
 use App\Models\BankAccount;
+use App\Services\GoogleDriveService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -137,8 +138,31 @@ class VendorInvoiceController extends Controller
 
         // Handle file upload
         if ($request->hasFile('invoice_file')) {
-            $path = $request->file('invoice_file')->store('vendor-invoices', 'public');
-            $data['invoice_file_path'] = $path;
+            $file = $request->file('invoice_file');
+            $fileName = 'vendor_invoice_' . time() . '_' . $file->getClientOriginalName();
+            
+            $googleDriveService = new GoogleDriveService();
+            
+            // Check if Google Drive is authenticated
+            if (!$googleDriveService->isAuthenticated()) {
+                return response()->json([
+                    'message' => 'Google Drive authentication required',
+                    'error_code' => 'GOOGLE_AUTH_REQUIRED'
+                ], 401);
+            }
+            
+            $uploadResult = $googleDriveService->uploadFile($file, $fileName);
+            
+            if ($uploadResult) {
+                $data['google_drive_file_id'] = $uploadResult['file_id'];
+                $data['google_drive_file_name'] = $uploadResult['name'];
+                $data['google_drive_web_view_link'] = $uploadResult['web_view_link'];
+                $data['invoice_file_path'] = null; // Clear local path as we're using Google Drive
+            } else {
+                return response()->json([
+                    'message' => 'Failed to upload file to Google Drive'
+                ], 500);
+            }
         }
 
         $invoice = VendorInvoice::create($data);
@@ -210,12 +234,41 @@ class VendorInvoiceController extends Controller
 
         // Handle file upload
         if ($request->hasFile('invoice_file')) {
-            // Delete old file if exists
+            $file = $request->file('invoice_file');
+            $fileName = 'vendor_invoice_' . time() . '_' . $file->getClientOriginalName();
+            
+            $googleDriveService = new GoogleDriveService();
+            
+            // Check if Google Drive is authenticated
+            if (!$googleDriveService->isAuthenticated()) {
+                return response()->json([
+                    'message' => 'Google Drive authentication required',
+                    'error_code' => 'GOOGLE_AUTH_REQUIRED'
+                ], 401);
+            }
+            
+            // Delete old file from Google Drive if exists
+            if ($vendorInvoice->google_drive_file_id) {
+                $googleDriveService->deleteFile($vendorInvoice->google_drive_file_id);
+            }
+            
+            // Delete old local file if exists
             if ($vendorInvoice->invoice_file_path) {
                 Storage::disk('public')->delete($vendorInvoice->invoice_file_path);
             }
-            $path = $request->file('invoice_file')->store('vendor-invoices', 'public');
-            $data['invoice_file_path'] = $path;
+            
+            $uploadResult = $googleDriveService->uploadFile($file, $fileName);
+            
+            if ($uploadResult) {
+                $data['google_drive_file_id'] = $uploadResult['file_id'];
+                $data['google_drive_file_name'] = $uploadResult['name'];
+                $data['google_drive_web_view_link'] = $uploadResult['web_view_link'];
+                $data['invoice_file_path'] = null; // Clear local path as we're using Google Drive
+            } else {
+                return response()->json([
+                    'message' => 'Failed to upload file to Google Drive'
+                ], 500);
+            }
         }
 
         $vendorInvoice->update($data);
@@ -238,6 +291,12 @@ class VendorInvoiceController extends Controller
         }
 
         // Delete associated file if exists
+        if ($vendorInvoice->google_drive_file_id) {
+            $googleDriveService = new GoogleDriveService();
+            $googleDriveService->deleteFile($vendorInvoice->google_drive_file_id);
+        }
+        
+        // Delete local file if exists (for backward compatibility)
         if ($vendorInvoice->invoice_file_path) {
             Storage::disk('public')->delete($vendorInvoice->invoice_file_path);
         }
@@ -306,6 +365,23 @@ class VendorInvoiceController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Check Google Drive file first
+        if ($vendorInvoice->google_drive_file_id) {
+            $googleDriveService = new GoogleDriveService();
+            $fileContent = $googleDriveService->downloadFile($vendorInvoice->google_drive_file_id);
+            
+            if ($fileContent) {
+                $fileName = $vendorInvoice->google_drive_file_name ?: 'invoice_file';
+                
+                return response($fileContent)
+                    ->header('Content-Type', 'application/octet-stream')
+                    ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"');
+            } else {
+                return response()->json(['message' => 'Failed to download file from Google Drive'], 500);
+            }
+        }
+
+        // Fallback to local file (for backward compatibility)
         if (!$vendorInvoice->invoice_file_path) {
             return response()->json(['message' => 'No file found'], 404);
         }
@@ -315,5 +391,27 @@ class VendorInvoiceController extends Controller
         }
 
         return Storage::disk('public')->download($vendorInvoice->invoice_file_path);
+    }
+
+    /**
+     * Get Google Drive view link for invoice file
+     */
+    public function getFileViewLink(Request $request, VendorInvoice $vendorInvoice)
+    {
+        $user = $request->user();
+        
+        // Check if user can view this invoice
+        if ($user->isEditor() && $vendorInvoice->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (!$vendorInvoice->google_drive_web_view_link) {
+            return response()->json(['message' => 'No Google Drive file found'], 404);
+        }
+
+        return response()->json([
+            'view_link' => $vendorInvoice->google_drive_web_view_link,
+            'file_name' => $vendorInvoice->google_drive_file_name
+        ]);
     }
 }
