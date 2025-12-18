@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
+use App\Utils\TimezoneUtil;
 
 class EmployeeController extends Controller
 {
@@ -237,8 +238,8 @@ class EmployeeController extends Controller
     public function earnings()
     {
         // Calculate current pay period dates based on bi-weekly Thursday pay schedule
-        $firstPayDay = Carbon::parse('2025-07-24'); // First pay day (Thursday)
-        $today = Carbon::now();
+        $firstPayDay = TimezoneUtil::parse('2025-07-24'); // First pay day (Thursday)
+        $today = TimezoneUtil::now();
         
         // Find the current pay period
         // Pay period is exactly 2 weeks (14 days) before the pay day
@@ -346,8 +347,8 @@ class EmployeeController extends Controller
      */
     public function getPayDays()
     {
-        $firstPayDay = Carbon::parse('2025-07-24'); // First pay day (Thursday)
-        $today = Carbon::now();
+        $firstPayDay = TimezoneUtil::parse('2025-07-24'); // First pay day (Thursday)
+        $today = TimezoneUtil::now();
         
         // Calculate how many pay periods have passed since the first pay day
         $weeksSinceFirstPay = $today->diffInWeeks($firstPayDay, false);
@@ -413,7 +414,7 @@ class EmployeeController extends Controller
             ], 422);
         }
 
-        $payDay = Carbon::parse($request->pay_day);
+        $payDay = TimezoneUtil::parse($request->pay_day);
         $employeeIds = $request->employee_ids;
         
         // Calculate work period for the selected pay day
@@ -453,7 +454,7 @@ class EmployeeController extends Controller
             'periodStart' => $periodStart->format('M j, Y'),
             'periodEnd' => $periodEnd->format('M j, Y'),
             'employees' => $reportData,
-            'generatedAt' => Carbon::now()->setTimezone('America/Edmonton')->format('M j, Y g:i A')
+            'generatedAt' => TimezoneUtil::formatNow()
         ])->render();
         
         // For now, return the data as JSON. In production, you'd use a PDF library like DomPDF
