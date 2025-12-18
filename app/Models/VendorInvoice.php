@@ -60,6 +60,15 @@ class VendorInvoice extends Model
             $vendorInvoice->calculateSubtotal();
         });
 
+        // Handle payment when creating a new invoice with Paid status
+        static::created(function ($vendorInvoice) {
+            // Check if the newly created invoice has Paid status
+            if (in_array($vendorInvoice->status, ['Paid', 'paid'])) {
+                $vendorInvoice->handlePayment();
+            }
+        });
+
+        // Handle payment when updating an existing invoice to Paid status
         static::updating(function ($vendorInvoice) {
             // Check if status is being changed to 'Paid' or 'paid' (handle both cases)
             if ($vendorInvoice->isDirty('status') && in_array($vendorInvoice->status, ['Paid', 'paid'])) {
