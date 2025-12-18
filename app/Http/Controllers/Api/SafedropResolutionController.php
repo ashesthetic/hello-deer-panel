@@ -6,12 +6,43 @@ use App\Http\Controllers\Controller;
 use App\Models\SafedropResolution;
 use App\Models\DailySale;
 use App\Models\BankAccount;
+use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class SafedropResolutionController extends Controller
 {
+    /**
+     * Get or create the Cash account for safedrop transfers
+     */
+    private function getCashAccount()
+    {
+        // Try to find existing Cash account
+        $cashAccount = BankAccount::where('account_name', 'Cash')
+            ->where('bank_name', 'Cash on Hand')
+            ->first();
+        
+        if (!$cashAccount) {
+            // Create Cash account if it doesn't exist
+            $adminUser = \App\Models\User::where('role', 'Admin')->first();
+            
+            $cashAccount = BankAccount::create([
+                'bank_name' => 'Cash on Hand',
+                'account_name' => 'Cash',
+                'account_number' => 'CASH-001',
+                'account_type' => 'Business',
+                'currency' => 'CAD',
+                'balance' => 0,
+                'is_active' => true,
+                'notes' => 'Virtual account for tracking cash safedrops and cash in hand',
+                'user_id' => $adminUser->id,
+            ]);
+        }
+        
+        return $cashAccount;
+    }
+
     /**
      * Display pending safedrops and cash in hand amounts
      */
@@ -124,6 +155,9 @@ class SafedropResolutionController extends Controller
 
             $createdResolutions = [];
             
+            // Get the Cash account for transfers
+            $cashAccount = $this->getCashAccount();
+            
             foreach ($request->resolutions as $resolution) {
                 // Verify bank account exists and user can access it
                 $bankAccount = BankAccount::findOrFail($resolution['bank_account_id']);
@@ -146,6 +180,30 @@ class SafedropResolutionController extends Controller
                 
                 // Update bank account balance
                 $bankAccount->increment('balance', $resolution['amount']);
+                
+                // Create Transfer transaction from Cash to Bank Account
+                $transactionDescription = $type === 'safedrops' 
+                    ? "Safedrop resolution for {$dailySale->date}"
+                    : "Cash in hand resolution for {$dailySale->date}";
+                
+                if ($resolution['notes']) {
+                    $transactionDescription .= " - {$resolution['notes']}";
+                }
+                
+                $transaction = Transaction::create([
+                    'type' => 'transfer',
+                    'amount' => $resolution['amount'],
+                    'description' => $transactionDescription,
+                    'from_bank_account_id' => $cashAccount->id,
+                    'to_bank_account_id' => $bankAccount->id,
+                    'transaction_date' => now()->toDateString(),
+                    'reference_number' => 'SR-' . $safedropResolution->id,
+                    'status' => 'completed',
+                    'user_id' => $user->id,
+                ]);
+                
+                // Update cash account balance (decrease)
+                $cashAccount->decrement('balance', $resolution['amount']);
                 
                 $createdResolutions[] = $safedropResolution->load(['bankAccount', 'user']);
             }
@@ -200,6 +258,22 @@ class SafedropResolutionController extends Controller
 
         try {
             DB::beginTransaction();
+            
+            // Find and delete the associated transaction
+            $transaction = Transaction::where('reference_number', 'SR-' . $safedropResolution->id)
+                ->where('type', 'transfer')
+                ->first();
+            
+            if ($transaction) {
+                // Get the cash account
+                $cashAccount = $this->getCashAccount();
+                
+                // Reverse the cash account balance (increase it back)
+                $cashAccount->increment('balance', $safedropResolution->amount);
+                
+                // Delete the transaction
+                $transaction->delete();
+            }
             
             // Reverse the bank account balance change
             $safedropResolution->bankAccount->decrement('balance', $safedropResolution->amount);
