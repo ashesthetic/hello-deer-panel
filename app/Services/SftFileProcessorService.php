@@ -63,6 +63,14 @@ class SftFileProcessorService
             'afd_discover' => 0,
             'afd_interac_debit' => 0,
             'afd_debit_transaction_count' => 0,
+            // Department Totals
+            'tobacco_25' => 0,
+            'tobacco_20' => 0,
+            'lottery_total' => 0,
+            'prepay_total' => 0,
+            // Loyalty Discounts
+            'journey_discount' => 0,
+            'aeroplan_discount' => 0,
             'files_processed' => 0,
             'files_with_errors' => 0,
             'processed_files' => [],
@@ -105,6 +113,14 @@ class SftFileProcessorService
                     $aggregatedData['afd_discover'] += $fileData['data']['afd_discover'];
                     $aggregatedData['afd_interac_debit'] += $fileData['data']['afd_interac_debit'];
                     $aggregatedData['afd_debit_transaction_count'] += $fileData['data']['afd_debit_transaction_count'];
+                    // Department Totals
+                    $aggregatedData['tobacco_25'] += $fileData['data']['tobacco_25'];
+                    $aggregatedData['tobacco_20'] += $fileData['data']['tobacco_20'];
+                    $aggregatedData['lottery_total'] += $fileData['data']['lottery_total'];
+                    $aggregatedData['prepay_total'] += $fileData['data']['prepay_total'];
+                    // Loyalty Discounts
+                    $aggregatedData['journey_discount'] += $fileData['data']['journey_discount'];
+                    $aggregatedData['aeroplan_discount'] += $fileData['data']['aeroplan_discount'];
                     $aggregatedData['files_processed']++;
                     
                     $aggregatedData['processed_files'][] = [
@@ -139,7 +155,15 @@ class SftFileProcessorService
                         'afd_up_credit' => $fileData['data']['afd_up_credit'],
                         'afd_discover' => $fileData['data']['afd_discover'],
                         'afd_interac_debit' => $fileData['data']['afd_interac_debit'],
-                        'afd_debit_transaction_count' => $fileData['data']['afd_debit_transaction_count']
+                        'afd_debit_transaction_count' => $fileData['data']['afd_debit_transaction_count'],
+                        // Department Totals
+                        'tobacco_25' => $fileData['data']['tobacco_25'],
+                        'tobacco_20' => $fileData['data']['tobacco_20'],
+                        'lottery_total' => $fileData['data']['lottery_total'],
+                        'prepay_total' => $fileData['data']['prepay_total'],
+                        // Loyalty Discounts
+                        'journey_discount' => $fileData['data']['journey_discount'],
+                        'aeroplan_discount' => $fileData['data']['aeroplan_discount']
                     ];
                     
                     // Mark file as processed
@@ -224,13 +248,41 @@ class SftFileProcessorService
                 'afd_up_credit' => 0,
                 'afd_discover' => 0,
                 'afd_interac_debit' => 0,
-                'afd_debit_transaction_count' => 0
+                'afd_debit_transaction_count' => 0,
+                // Department Totals
+                'tobacco_25' => 0,
+                'tobacco_20' => 0,
+                'lottery_total' => 0,
+                'prepay_total' => 0,
+                // Loyalty Discounts
+                'journey_discount' => 0,
+                'aeroplan_discount' => 0
             ];
 
             // Parse lines to find sales data
             $currentSection = '';
+            $currentDepartment = '';
+            $currentLoyaltySection = '';
             foreach ($lines as $line) {
                 $line = trim($line);
+                
+                // Track departments
+                if (preg_match('/Department: \d+\s+(.*)/', $line, $matches)) {
+                    $currentDepartment = trim($matches[1]);
+                    continue;
+                }
+                
+                // Track loyalty sections
+                if (preg_match('/^\s*Aeroplan\s*$/', $line)) {
+                    $currentLoyaltySection = 'aeroplan';
+                    continue;
+                } elseif (preg_match('/^\s*JOURNIE Rewards\s*$/', $line)) {
+                    $currentLoyaltySection = 'journey';
+                    continue;
+                } elseif (preg_match('/^\s*Points earned\s*$/', $line)) {
+                    // End of loyalty section
+                    $currentLoyaltySection = '';
+                }
                 
                 // Track which section we're in
                 if (preg_match('/^\s*AFD CREDIT POS TOTALS\s*$/', $line)) {
@@ -349,6 +401,32 @@ class SftFileProcessorService
                     if (preg_match('/INTERAC\s+(\d+)\s+(\d+\.\d+)/', $line, $matches)) {
                         $salesData['afd_interac_debit'] = (float) $matches[2];
                         $salesData['afd_debit_transaction_count'] = (int) $matches[1];
+                    }
+                }
+                
+                // Parse department-based totals
+                if (preg_match('/Grand Total\s+\d+\s+\d+\s+\$\s*(\d+\.\d+)/', $line, $matches)) {
+                    $total = (float) $matches[1];
+                    
+                    if (stripos($currentDepartment, 'CIG SINGLE 25') !== false) {
+                        $salesData['tobacco_25'] += $total;
+                    } elseif (stripos($currentDepartment, 'CIG SINGLE 20') !== false) {
+                        $salesData['tobacco_20'] += $total;
+                    } elseif (stripos($currentDepartment, 'LOTTO') !== false || 
+                              stripos($currentDepartment, 'SCRATCH LOTTERY') !== false) {
+                        $salesData['lottery_total'] += $total;
+                    } elseif (stripos($currentDepartment, 'PHONE CARDS') !== false) {
+                        $salesData['prepay_total'] += $total;
+                    }
+                }
+                
+                // Extract loyalty discounts
+                if ($currentLoyaltySection && preg_match('/Total\s+loyalty\s+discounts\s+([\d,]+\.?\d*)/', $line, $matches)) {
+                    $value = floatval(str_replace(',', '', $matches[1]));
+                    if ($currentLoyaltySection === 'journey') {
+                        $salesData['journey_discount'] = $value;
+                    } elseif ($currentLoyaltySection === 'aeroplan') {
+                        $salesData['aeroplan_discount'] = $value;
                     }
                 }
             }
