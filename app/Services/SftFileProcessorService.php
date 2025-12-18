@@ -31,7 +31,8 @@ class SftFileProcessorService
             ];
         }
 
-        $aggregatedData = [
+                $aggregatedData = [
+            // Sales totals
             'total_sales' => 0,
             'fuel_sales' => 0,
             'item_sales' => 0,
@@ -71,6 +72,15 @@ class SftFileProcessorService
             // Loyalty Discounts
             'journey_discount' => 0,
             'aeroplan_discount' => 0,
+            // Fuel Volume Data
+            'diesel_volume' => 0,
+            'diesel_total' => 0,
+            'regular_volume' => 0,
+            'regular_total' => 0,
+            'plus_volume' => 0,
+            'plus_total' => 0,
+            'sup_plus_volume' => 0,
+            'sup_plus_total' => 0,
             'files_processed' => 0,
             'files_with_errors' => 0,
             'processed_files' => [],
@@ -121,6 +131,15 @@ class SftFileProcessorService
                     // Loyalty Discounts
                     $aggregatedData['journey_discount'] += $fileData['data']['journey_discount'];
                     $aggregatedData['aeroplan_discount'] += $fileData['data']['aeroplan_discount'];
+                    // Fuel Volume Data
+                    $aggregatedData['diesel_volume'] += $fileData['data']['diesel_volume'];
+                    $aggregatedData['diesel_total'] += $fileData['data']['diesel_total'];
+                    $aggregatedData['regular_volume'] += $fileData['data']['regular_volume'];
+                    $aggregatedData['regular_total'] += $fileData['data']['regular_total'];
+                    $aggregatedData['plus_volume'] += $fileData['data']['plus_volume'];
+                    $aggregatedData['plus_total'] += $fileData['data']['plus_total'];
+                    $aggregatedData['sup_plus_volume'] += $fileData['data']['sup_plus_volume'];
+                    $aggregatedData['sup_plus_total'] += $fileData['data']['sup_plus_total'];
                     $aggregatedData['files_processed']++;
                     
                     $aggregatedData['processed_files'][] = [
@@ -256,7 +275,16 @@ class SftFileProcessorService
                 'prepay_total' => 0,
                 // Loyalty Discounts
                 'journey_discount' => 0,
-                'aeroplan_discount' => 0
+                'aeroplan_discount' => 0,
+                // Fuel Volume Data
+                'diesel_volume' => 0,
+                'diesel_total' => 0,
+                'regular_volume' => 0,
+                'regular_total' => 0,
+                'plus_volume' => 0,
+                'plus_total' => 0,
+                'sup_plus_volume' => 0,
+                'sup_plus_total' => 0
             ];
 
             // Parse lines to find sales data
@@ -427,6 +455,56 @@ class SftFileProcessorService
                         $salesData['journey_discount'] = $value;
                     } elseif ($currentLoyaltySection === 'aeroplan') {
                         $salesData['aeroplan_discount'] = $value;
+                    }
+                }
+                
+                // Parse fuel volume data from the SFT fuel table format
+                // Pattern matches: "Diesel                    0.00      0.00"
+                // Pattern matches: "Regular(87)             636.05    845.32"
+                // Pattern matches: "Sup Plus(94)              0.00      0.00"
+                // Pattern matches: "Plus(91)                 31.77     51.13"
+                $fuelDataProcessed = false;
+                if (preg_match('/^\s*(Diesel|Regular\(\d+\)|Sup\s*Plus\(\d+\)|Plus\(\d+\))\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s*$/', $line, $matches)) {
+                    $fuelType = trim($matches[1]);
+                    $volume = floatval(str_replace(',', '', $matches[2]));
+                    $total = floatval(str_replace(',', '', $matches[3]));
+                    
+                    // Normalize fuel type names and assign to proper fields
+                    if (stripos($fuelType, 'diesel') !== false) {
+                        $salesData['diesel_volume'] += $volume;
+                        $salesData['diesel_total'] += $total;
+                    } elseif (stripos($fuelType, 'regular') !== false) {
+                        $salesData['regular_volume'] += $volume;
+                        $salesData['regular_total'] += $total;
+                    } elseif (stripos($fuelType, 'sup') !== false && stripos($fuelType, 'plus') !== false) {
+                        $salesData['sup_plus_volume'] += $volume;
+                        $salesData['sup_plus_total'] += $total;
+                    } elseif (stripos($fuelType, 'plus') !== false) {
+                        $salesData['plus_volume'] += $volume;
+                        $salesData['plus_total'] += $total;
+                    }
+                    $fuelDataProcessed = true;
+                }
+                
+                // Alternative pattern for fuel data without parentheses (fallback)
+                // Only run this if the primary pattern didn't already process this line
+                if (!$fuelDataProcessed && preg_match('/^\s*(Diesel|Regular|Sup\s*Plus|Plus)\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s*$/', $line, $matches)) {
+                    $fuelType = trim($matches[1]);
+                    $volume = floatval(str_replace(',', '', $matches[2]));
+                    $total = floatval(str_replace(',', '', $matches[3]));
+                    
+                    if (stripos($fuelType, 'diesel') !== false) {
+                        $salesData['diesel_volume'] += $volume;
+                        $salesData['diesel_total'] += $total;
+                    } elseif (stripos($fuelType, 'regular') !== false) {
+                        $salesData['regular_volume'] += $volume;
+                        $salesData['regular_total'] += $total;
+                    } elseif (stripos($fuelType, 'sup') !== false && stripos($fuelType, 'plus') !== false) {
+                        $salesData['sup_plus_volume'] += $volume;
+                        $salesData['sup_plus_total'] += $total;
+                    } elseif (stripos($fuelType, 'plus') !== false) {
+                        $salesData['plus_volume'] += $volume;
+                        $salesData['plus_total'] += $total;
                     }
                 }
             }
