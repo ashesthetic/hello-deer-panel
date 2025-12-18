@@ -22,8 +22,11 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // Authentication routes
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-Route::get('/user/profile', [AuthController::class, 'profile'])->middleware('auth:sanctum');
 
 // Daily Sales routes
+Route::get('daily-sales/month/{year?}/{month?}', [\App\Http\Controllers\Api\DailySaleController::class, 'getByMonth'])->middleware('auth:sanctum');
 Route::apiResource('daily-sales', \App\Http\Controllers\Api\DailySaleController::class)->middleware('auth:sanctum');
-Route::get('daily-sales/month/{year?}/{month?}', [\App\Http\Controllers\Api\DailySaleController::class, 'getByMonth'])->middleware('auth:sanctum'); 
+
+// User management routes (Admin only)
+Route::apiResource('users', \App\Http\Controllers\Api\UserController::class)->middleware('auth:sanctum');
+Route::get('/user/profile', [\App\Http\Controllers\Api\UserController::class, 'profile'])->middleware('auth:sanctum'); 
