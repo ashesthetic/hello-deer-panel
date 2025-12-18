@@ -340,4 +340,132 @@ class EmployeeController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Get all pay days (previous, current, and upcoming)
+     */
+    public function getPayDays()
+    {
+        $firstPayDay = Carbon::parse('2025-07-24'); // First pay day (Thursday)
+        $today = Carbon::now();
+        
+        // Calculate how many pay periods have passed since the first pay day
+        $weeksSinceFirstPay = $today->diffInWeeks($firstPayDay, false);
+        $payPeriodsPassed = floor($weeksSinceFirstPay / 2);
+        
+        // Current pay day is the first pay day minus the passed pay periods
+        $currentPayDay = $firstPayDay->copy()->subWeeks($payPeriodsPassed * 2);
+        
+        $payDays = [];
+        
+        // Add previous pay days (last 6 pay periods)
+        for ($i = 1; $i <= 6; $i++) {
+            $payDay = $currentPayDay->copy()->subWeeks($i * 2);
+            $payDays[] = [
+                'date' => $payDay->format('Y-m-d'),
+                'label' => $payDay->format('l, M j, Y'),
+                'type' => 'previous'
+            ];
+        }
+        
+        // Add current pay day
+        $payDays[] = [
+            'date' => $currentPayDay->format('Y-m-d'),
+            'label' => $currentPayDay->format('l, M j, Y'),
+            'type' => 'current'
+        ];
+        
+        // Add next pay day
+        $nextPayDay = $currentPayDay->copy()->addWeeks(2);
+        $payDays[] = [
+            'date' => $nextPayDay->format('Y-m-d'),
+            'label' => $nextPayDay->format('l, M j, Y'),
+            'type' => 'upcoming'
+        ];
+        
+        // Sort by date (oldest first)
+        usort($payDays, function($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+        
+        return response()->json([
+            'success' => true,
+            'data' => $payDays
+        ]);
+    }
+
+    /**
+     * Generate work hour report PDF
+     */
+    public function generateWorkHourReport(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'pay_day' => 'required|date',
+            'employee_ids' => 'required|array',
+            'employee_ids.*' => 'exists:employees,id'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $payDay = Carbon::parse($request->pay_day);
+        $employeeIds = $request->employee_ids;
+        
+        // Calculate work period for the selected pay day
+        $periodStart = $payDay->copy()->subDays(20);
+        $periodEnd = $payDay->copy()->subDays(7);
+        
+        // Get selected employees
+        $employees = Employee::whereIn('id', $employeeIds)->get();
+        
+        $reportData = [];
+        
+        foreach ($employees as $employee) {
+            // Get work hours for the period
+            $workHours = $employee->workHours()
+                ->whereBetween('date', [$periodStart->format('Y-m-d'), $periodEnd->format('Y-m-d')])
+                ->get();
+            
+            $totalHours = $workHours->sum('total_hours');
+            $totalEarnings = $totalHours * $employee->hourly_rate;
+            
+            $reportData[] = [
+                'name' => $employee->full_legal_name,
+                'position' => $employee->position,
+                'sin_number' => $employee->sin_number,
+                'address' => $employee->address,
+                'postal_code' => $employee->postal_code,
+                'country' => $employee->country,
+                'total_hours' => round($totalHours, 2),
+                'hourly_rate' => $employee->hourly_rate,
+                'total_earnings' => round($totalEarnings, 2)
+            ];
+        }
+        
+        // Generate PDF using a simple HTML template
+        $html = view('reports.work-hour-report', [
+            'payDay' => $payDay->format('l, M j, Y'),
+            'periodStart' => $periodStart->format('M j, Y'),
+            'periodEnd' => $periodEnd->format('M j, Y'),
+            'employees' => $reportData,
+            'generatedAt' => Carbon::now()->setTimezone('America/Edmonton')->format('M j, Y g:i A')
+        ])->render();
+        
+        // For now, return the data as JSON. In production, you'd use a PDF library like DomPDF
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'pay_day' => $payDay->format('Y-m-d'),
+                'period_start' => $periodStart->format('Y-m-d'),
+                'period_end' => $periodEnd->format('Y-m-d'),
+                'employees' => $reportData,
+                'html' => $html
+            ]
+        ]);
+    }
 }
