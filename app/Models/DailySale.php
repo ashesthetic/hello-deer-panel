@@ -180,4 +180,44 @@ class DailySale extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Relationship with safedrop resolutions
+     */
+    public function safedropResolutions()
+    {
+        return $this->hasMany(SafedropResolution::class);
+    }
+
+    /**
+     * Get pending safedrops amount
+     */
+    public function getPendingSafedropsAttribute()
+    {
+        $resolved = $this->safedropResolutions()
+            ->where('type', 'safedrops')
+            ->sum('amount');
+        
+        return max(0, $this->safedrops_amount - $resolved);
+    }
+
+    /**
+     * Get pending cash in hand amount
+     */
+    public function getPendingCashInHandAttribute()
+    {
+        $resolved = $this->safedropResolutions()
+            ->where('type', 'cash_in_hand')
+            ->sum('amount');
+        
+        return max(0, $this->cash_on_hand - $resolved);
+    }
+
+    /**
+     * Check if all amounts are resolved
+     */
+    public function getIsFullyResolvedAttribute()
+    {
+        return $this->pending_safedrops <= 0 && $this->pending_cash_in_hand <= 0;
+    }
 }

@@ -44,9 +44,9 @@ Route::apiResource('vendors', \App\Http\Controllers\Api\VendorController::class)
 Route::get('/bank-accounts/summary', [\App\Http\Controllers\Api\BankAccountController::class, 'summary'])->middleware('auth:sanctum');
 Route::apiResource('bank-accounts', \App\Http\Controllers\Api\BankAccountController::class)->middleware('auth:sanctum');
 
-// Bank Account routes
-Route::get('/bank-accounts/summary', [\App\Http\Controllers\Api\BankAccountController::class, 'summary'])->middleware('auth:sanctum');
-Route::apiResource('bank-accounts', \App\Http\Controllers\Api\BankAccountController::class)->middleware('auth:sanctum');
+// Safedrop Resolution routes
+Route::get('/safedrop-resolutions/history', [\App\Http\Controllers\Api\SafedropResolutionController::class, 'history'])->middleware('auth:sanctum');
+Route::apiResource('safedrop-resolutions', \App\Http\Controllers\Api\SafedropResolutionController::class)->only(['index', 'store', 'destroy'])->middleware('auth:sanctum');
 
 // User management routes (Admin only)
 Route::apiResource('users', \App\Http\Controllers\Api\UserController::class)->middleware('auth:sanctum');
