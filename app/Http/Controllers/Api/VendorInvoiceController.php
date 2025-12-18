@@ -39,6 +39,11 @@ class VendorInvoiceController extends Controller
             $query->where('user_id', $user->id);
         }
         
+        // Staff users can only see their own entries
+        if ($user->isStaff()) {
+            $query->where('user_id', $user->id);
+        }
+        
         // Add search filter if provided
         if ($search) {
             $query->where(function($q) use ($search) {
@@ -180,8 +185,9 @@ class VendorInvoiceController extends Controller
     {
         $user = $request->user();
         
-        if (!$user->canCreate()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        // Staff users are specifically allowed to create invoices through this endpoint
+        if (!$user->isStaff()) {
+            return response()->json(['message' => 'Unauthorized. This endpoint is only for staff users.'], 403);
         }
 
         $request->validate([
