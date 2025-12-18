@@ -42,7 +42,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
-            'role' => ['required', Rule::in(['admin', 'editor', 'viewer'])],
+            'role' => ['required', Rule::in(['admin', 'editor', 'viewer', 'staff'])],
         ]);
 
         $newUser = User::create([
@@ -87,7 +87,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password' => 'nullable|string|min:8',
-            'role' => ['required', Rule::in(['admin', 'editor', 'viewer'])],
+            'role' => ['required', Rule::in(['admin', 'editor', 'viewer', 'staff'])],
         ]);
 
         $updateData = [
@@ -138,5 +138,35 @@ class UserController extends Controller
     {
         $user = $request->user();
         return response()->json($user);
+    }
+
+    /**
+     * Update current user profile
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'password' => 'nullable|string|min:8',
+        ]);
+
+        $updateData = [
+            'name' => $request->name,
+            'email' => $request->email,
+        ];
+
+        if ($request->filled('password')) {
+            $updateData['password'] = Hash::make($request->password);
+        }
+
+        $user->update($updateData);
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'data' => $user
+        ]);
     }
 }
