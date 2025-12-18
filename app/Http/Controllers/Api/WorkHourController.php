@@ -68,6 +68,73 @@ class WorkHourController extends Controller
     }
 
     /**
+     * Bulk store work hours from schedule
+     */
+    public function bulkStore(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'work_hours' => 'required|array',
+            'work_hours.*.employee_id' => 'required|exists:employees,id',
+            'work_hours.*.date' => 'required|date',
+            'work_hours.*.start_time' => 'required|date_format:H:i',
+            'work_hours.*.end_time' => 'required|date_format:H:i',
+            'work_hours.*.project' => 'nullable|string|max:255',
+            'work_hours.*.description' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $userId = auth()->id();
+        $createdCount = 0;
+        $errors = [];
+
+        foreach ($request->work_hours as $index => $workHourData) {
+            try {
+                // Calculate total hours
+                $startTime = TimezoneUtil::parse($workHourData['date'] . ' ' . $workHourData['start_time']);
+                $endTime = TimezoneUtil::parse($workHourData['date'] . ' ' . $workHourData['end_time']);
+                
+                // Validate that end time is after start time
+                if ($endTime->lte($startTime)) {
+                    $errors[] = "Entry #" . ($index + 1) . ": End time must be after start time";
+                    continue;
+                }
+
+                $totalHours = $startTime->diffInMinutes($endTime) / 60;
+
+                WorkHour::create([
+                    'employee_id' => $workHourData['employee_id'],
+                    'date' => $workHourData['date'],
+                    'start_time' => $workHourData['start_time'],
+                    'end_time' => $workHourData['end_time'],
+                    'total_hours' => $totalHours,
+                    'project' => $workHourData['project'] ?? null,
+                    'description' => $workHourData['description'] ?? null,
+                    'user_id' => $userId,
+                ]);
+
+                $createdCount++;
+            } catch (\Exception $e) {
+                $errors[] = "Entry #" . ($index + 1) . ": " . $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Successfully created {$createdCount} work hour entries",
+            'created' => $createdCount,
+            'failed' => count($errors),
+            'errors' => $errors
+        ], 201);
+    }
+
+    /**
      * Display the specified resource.
      */
     public function show(WorkHour $workHour)
