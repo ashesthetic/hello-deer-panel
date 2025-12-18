@@ -60,6 +60,8 @@ class DailySaleController extends Controller
             $sale->total_product_sale = $sale->fuel_sale + $sale->store_sale + $sale->gst;
             $sale->total_counter_sale = $sale->card + $sale->cash + $sale->coupon + $sale->delivery;
             $sale->grand_total = $sale->total_product_sale + $sale->total_counter_sale;
+            // Ensure reported_total is not null
+            $sale->reported_total = $sale->reported_total ?? 0;
             return $sale;
         });
         
@@ -99,6 +101,8 @@ class DailySaleController extends Controller
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
         $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
         $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
+        // Ensure reported_total is not null
+        $dailySale->reported_total = $dailySale->reported_total ?? 0;
 
         return response()->json([
             'message' => 'Daily sale created successfully',
@@ -122,6 +126,8 @@ class DailySaleController extends Controller
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
         $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
         $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
+        // Ensure reported_total is not null
+        $dailySale->reported_total = $dailySale->reported_total ?? 0;
         
         return response()->json($dailySale);
     }
@@ -156,6 +162,8 @@ class DailySaleController extends Controller
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
         $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
         $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
+        // Ensure reported_total is not null
+        $dailySale->reported_total = $dailySale->reported_total ?? 0;
 
         return response()->json([
             'message' => 'Daily sale updated successfully',
@@ -190,6 +198,8 @@ class DailySaleController extends Controller
             $sale->total_product_sale = $sale->fuel_sale + $sale->store_sale + $sale->gst;
             $sale->total_counter_sale = $sale->card + $sale->cash + $sale->coupon + $sale->delivery;
             $sale->grand_total = $sale->total_product_sale + $sale->total_counter_sale;
+            // Ensure reported_total is not null
+            $sale->reported_total = $sale->reported_total ?? 0;
             return $sale;
         });
         
