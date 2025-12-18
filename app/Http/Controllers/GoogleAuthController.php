@@ -170,12 +170,67 @@ class GoogleAuthController extends Controller
      */
     public function getAuthStatus(): JsonResponse
     {
-        $isAuthenticated = $this->googleDriveService->isAuthenticated();
-        
-        return response()->json([
-            'success' => true,
-            'authenticated' => $isAuthenticated
-        ]);
+        try {
+            $isAuthenticated = $this->googleDriveService->isAuthenticated();
+            
+            return response()->json([
+                'success' => true,
+                'authenticated' => $isAuthenticated,
+                'last_check' => now()->toISOString()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to check Google Drive auth status', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'authenticated' => false,
+                'error' => 'Failed to check authentication status'
+            ], 500);
+        }
+    }
+
+    /**
+     * Test connection and retry authentication if needed
+     */
+    public function testConnection(): JsonResponse
+    {
+        try {
+            $isAuthenticated = $this->googleDriveService->isAuthenticated();
+            
+            if ($isAuthenticated) {
+                // Test actual API call to verify connection
+                try {
+                    // This will test if we can actually make API calls
+                    $testResult = $this->googleDriveService->getFileMetadata('test'); // This will fail but tells us auth works
+                } catch (\Exception $e) {
+                    // If it's an auth error, mark as not authenticated
+                    if (strpos($e->getMessage(), 'unauthorized') !== false || 
+                        strpos($e->getMessage(), 'invalid_grant') !== false) {
+                        $isAuthenticated = false;
+                    }
+                }
+            }
+            
+            return response()->json([
+                'success' => true,
+                'authenticated' => $isAuthenticated,
+                'connection_test' => $isAuthenticated ? 'passed' : 'failed',
+                'timestamp' => now()->toISOString()
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to test Google Drive connection', [
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'authenticated' => false,
+                'connection_test' => 'error',
+                'error' => 'Connection test failed'
+            ], 500);
+        }
     }
 
     /**

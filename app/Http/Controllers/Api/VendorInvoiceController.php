@@ -151,8 +151,9 @@ class VendorInvoiceController extends Controller
             // Check if Google Drive is authenticated
             if (!$googleDriveService->isAuthenticated()) {
                 return response()->json([
-                    'message' => 'Google Drive authentication required',
-                    'error_code' => 'GOOGLE_AUTH_REQUIRED'
+                    'message' => 'Google Drive authentication required. Please connect your Google Drive account first.',
+                    'error_code' => 'GOOGLE_AUTH_REQUIRED',
+                    'reconnect_required' => true
                 ], 401);
             }
             
@@ -165,7 +166,9 @@ class VendorInvoiceController extends Controller
                 $data['invoice_file_path'] = null; // Clear local path as we're using Google Drive
             } else {
                 return response()->json([
-                    'message' => 'Failed to upload file to Google Drive'
+                    'message' => 'Failed to upload file to Google Drive. Please check your connection and try again.',
+                    'error_code' => 'UPLOAD_FAILED',
+                    'reconnect_suggested' => true
                 ], 500);
             }
         }

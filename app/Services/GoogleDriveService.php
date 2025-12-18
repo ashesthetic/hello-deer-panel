@@ -100,6 +100,7 @@ class GoogleDriveService
         $token = $this->getStoredAccessToken();
         
         if (!$token) {
+            Log::debug('Google Drive: No token found');
             return false;
         }
         
@@ -107,9 +108,21 @@ class GoogleDriveService
         
         // Check if token is expired and try to refresh
         if ($this->client->isAccessTokenExpired()) {
-            return $this->refreshAccessToken();
+            Log::debug('Google Drive: Token expired, attempting refresh');
+            $refreshResult = $this->refreshAccessToken();
+            
+            if (!$refreshResult) {
+                Log::warning('Google Drive: Token refresh failed, authentication lost');
+                // Clear invalid tokens
+                $this->clearStoredTokens();
+                return false;
+            }
+            
+            Log::info('Google Drive: Token refreshed successfully');
+            return true;
         }
         
+        Log::debug('Google Drive: Token valid and not expired');
         return true;
     }
 
@@ -264,11 +277,27 @@ class GoogleDriveService
     public function revokeAccess(): void
     {
         try {
-            $this->client->revokeToken();
+            // Only attempt to revoke if we have a token
+            $token = $this->getStoredAccessToken();
+            if ($token) {
+                $this->client->setAccessToken($token);
+                $this->client->revokeToken();
+            }
         } catch (\Exception $e) {
             Log::warning('Failed to revoke token', ['error' => $e->getMessage()]);
         }
         
+        // Always clear stored tokens regardless of revocation success
+        $this->clearStoredTokens();
+        
+        Log::info('Google Drive access revoked');
+    }
+
+    /**
+     * Clear stored tokens from all sources
+     */
+    private function clearStoredTokens(): void
+    {
         // Clear stored tokens from all sources
         Cache::forget('google_drive_token');
         Session::forget('google_drive_token');
@@ -280,8 +309,6 @@ class GoogleDriveService
                 ->where('service', 'google_drive')
                 ->delete();
         }
-        
-        Log::info('Google Drive access revoked');
     }
 
     /**
