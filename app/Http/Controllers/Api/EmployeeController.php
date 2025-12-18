@@ -236,14 +236,13 @@ class EmployeeController extends Controller
      */
     public function earnings()
     {
-        // Calculate current pay period dates
-        $firstPayDay = Carbon::parse('2025-07-24'); // First pay day
+        // Calculate current pay period dates based on bi-weekly Thursday pay schedule
+        $firstPayDay = Carbon::parse('2025-07-24'); // First pay day (Thursday)
         $today = Carbon::now();
         
         // Find the current pay period
-        // Since first pay day is July 24, 2025, we need to work backwards
-        // Current period: July 10-23, 2025 (pay day: July 24)
-        // Previous period: June 26-July 9, 2025 (pay day: July 10)
+        // Pay period is exactly 2 weeks (14 days) before the pay day
+        // Example: Payday July 24, 2025 → Pay period July 4-17, 2025
         
         // Calculate how many pay periods have passed since the first pay day
         $weeksSinceFirstPay = $today->diffInWeeks($firstPayDay, false);
@@ -252,16 +251,16 @@ class EmployeeController extends Controller
         // Current pay day is the first pay day minus the passed pay periods
         $currentPayDay = $firstPayDay->copy()->subWeeks($payPeriodsPassed * 2);
         
-        // Calculate the work period (2 weeks before pay day, keeping one week in hand)
-        // For July 24 pay day: period is July 4-17 (3 weeks before + 1 day to 1 week before)
-        $currentPeriodStart = $currentPayDay->copy()->subWeeks(3)->addDay();
-        $currentPeriodEnd = $currentPayDay->copy()->subWeek()->subDay();
+        // Calculate the work period (14 days ending 7 days before pay day)
+        // For July 24 pay day: period is July 4-17 (work period ends 7 days before pay day)
+        $currentPeriodStart = $currentPayDay->copy()->subDays(20);
+        $currentPeriodEnd = $currentPayDay->copy()->subDays(7);
         
         // Get next pay day and period
         $nextPayDay = $currentPayDay->copy()->addWeeks(2);
-        // For August 7 pay day: period is July 18-31 (3 weeks before next pay day + 1 day to 1 week before next pay day)
-        $nextPeriodStart = $nextPayDay->copy()->subWeeks(3)->addDay();
-        $nextPeriodEnd = $nextPayDay->copy()->subWeek()->subDay();
+        // For August 7 pay day: period is July 18-31 (work period ends 7 days before next pay day)
+        $nextPeriodStart = $nextPayDay->copy()->subDays(20);
+        $nextPeriodEnd = $nextPayDay->copy()->subDays(7);
         
         // Get all active employees
         $employees = Employee::where('status', 'active')->get();
