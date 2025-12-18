@@ -55,7 +55,20 @@ class FileImport extends Model
      */
     public function getFullPath(): string
     {
-        return storage_path('app/' . $this->file_path);
+        // First try the exact path as stored
+        $exactPath = storage_path('app/' . $this->file_path);
+        if (file_exists($exactPath)) {
+            return $exactPath;
+        }
+        
+        // If not found, try in the private directory (which is where files are actually stored)
+        $privatePath = storage_path('app/private/' . $this->file_path);
+        if (file_exists($privatePath)) {
+            return $privatePath;
+        }
+        
+        // Return the original path as fallback
+        return $exactPath;
     }
 
     /**
