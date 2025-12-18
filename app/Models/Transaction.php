@@ -178,19 +178,17 @@ class Transaction extends Model
         BankAccount $toAccount,
         float $amount,
         string $description,
-        ?string $notes,
+        ?string $referenceNumber,
         User $user
     ): self {
         $transaction = self::create([
             'type' => 'transfer',
             'amount' => $amount,
             'description' => $description,
-            'notes' => $notes,
             'from_bank_account_id' => $fromAccount->id,
             'to_bank_account_id' => $toAccount->id,
             'transaction_date' => now()->toDateString(),
-            'reference_number' => 'TXF-' . now()->format('YmdHis'),
-            'status' => 'completed',
+            'reference_number' => $referenceNumber ?: ('TXF-' . now()->format('YmdHis')),
             'user_id' => $user->id,
         ]);
         

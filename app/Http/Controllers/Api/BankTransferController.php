@@ -38,7 +38,15 @@ class BankTransferController extends Controller
      */
     public function transfer(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $user = $request->user();
+
+        // Check if user is authenticated
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated.'
+            ], 401);
+        }
 
         // Validate request
         $validated = $request->validate([
@@ -83,8 +91,8 @@ class BankTransferController extends Controller
                 $toBankAccount,
                 $validated['amount'],
                 $validated['description'],
-                $user,
-                $validated['reference_number'] ?? null
+                $validated['reference_number'] ?? null,
+                $user
             );
 
             return response()->json([
