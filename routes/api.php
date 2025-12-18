@@ -101,6 +101,9 @@ Route::get('/schedules/stats', [\App\Http\Controllers\Api\ScheduleController::cl
 Route::post('/schedules/email', [\App\Http\Controllers\Api\ScheduleController::class, 'emailSchedule'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('schedules', \App\Http\Controllers\Api\ScheduleController::class)->middleware(['auth:sanctum', 'not.staff']);
 
+// Staff-specific Schedule routes (View only)
+Route::get('/staff/schedules', [\App\Http\Controllers\Api\ScheduleController::class, 'index'])->middleware(['auth:sanctum']);
+
 // Vendor Invoice routes (Non-staff users only)
 Route::get('/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/vendor-invoices/bank-accounts', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getBankAccounts'])->middleware(['auth:sanctum', 'not.staff']);

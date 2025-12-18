@@ -17,14 +17,9 @@ class ScheduleController extends Controller
      */
     public function index(Request $request)
     {
-        // Check permissions
-        if (!auth()->user()->canCreate()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access'
-            ], 403);
-        }
-
+        // Allow all authenticated users to view schedules (including staff)
+        // This is necessary for staff to see their schedules on the dashboard
+        
         $query = Schedule::with(['employee', 'user']);
 
         // Filter by employee if provided
