@@ -445,14 +445,31 @@ class SftFileProcessorService
                 if (preg_match('/Grand Total\s+\d+\s+\d+\s+\$\s*(\d+\.\d+)/', $line, $matches)) {
                     $total = (float) $matches[1];
                     
-                    if (stripos($currentDepartment, 'CIG SINGLE 25') !== false) {
+                    // Check for Tobacco 25% categories
+                    if (stripos($currentDepartment, 'CIG SINGLE 25') !== false ||
+                        stripos($currentDepartment, 'RBH 25') !== false ||
+                        stripos($currentDepartment, 'JTI 25') !== false ||
+                        stripos($currentDepartment, 'Imperial 25') !== false ||
+                        stripos($currentDepartment, 'Cigar 25') !== false) {
                         $salesData['tobacco_25'] += $total;
-                    } elseif (stripos($currentDepartment, 'CIG SINGLE 20') !== false) {
+                    }
+                    // Check for Tobacco 20% categories  
+                    elseif (stripos($currentDepartment, 'CIG SINGLE 20') !== false ||
+                            stripos($currentDepartment, 'RBH 20') !== false ||
+                            stripos($currentDepartment, 'JTI 20') !== false ||
+                            stripos($currentDepartment, 'Imperial 20') !== false ||
+                            stripos($currentDepartment, 'Cigar 20') !== false ||
+                            stripos($currentDepartment, 'CTC') !== false ||
+                            stripos($currentDepartment, '20 Packs') !== false) {
                         $salesData['tobacco_20'] += $total;
-                    } elseif (stripos($currentDepartment, 'LOTTO') !== false || 
-                              stripos($currentDepartment, 'SCRATCH LOTTERY') !== false) {
+                    }
+                    // Check for lottery categories
+                    elseif (stripos($currentDepartment, 'LOTTO') !== false || 
+                            stripos($currentDepartment, 'SCRATCH LOTTERY') !== false) {
                         $salesData['lottery_total'] += $total;
-                    } elseif (stripos($currentDepartment, 'PHONE CARDS') !== false) {
+                    }
+                    // Check for prepaid categories
+                    elseif (stripos($currentDepartment, 'PHONE CARDS') !== false) {
                         $salesData['prepay_total'] += $total;
                     }
                 }
