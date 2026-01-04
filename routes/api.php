@@ -37,6 +37,7 @@ Route::prefix('google')->group(function () {
 
 // Daily Sales routes
 Route::get('daily-sales/month/{year?}/{month?}', [\App\Http\Controllers\Api\DailySaleController::class, 'getByMonth'])->middleware(['auth:sanctum', 'not.staff']);
+Route::get('daily-sales/monthly-trends', [\App\Http\Controllers\Api\DailySaleController::class, 'getMonthlyTrends'])->middleware(['auth:sanctum', 'not.staff']);
 Route::post('daily-sales/settlement-report', [\App\Http\Controllers\Api\DailySaleController::class, 'generateSettlementReport'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('settlement-dates', [\App\Http\Controllers\Api\DailySaleController::class, 'getSettlementDates'])->middleware(['auth:sanctum', 'not.staff']);
 Route::put('settlement-dates', [\App\Http\Controllers\Api\DailySaleController::class, 'updateSettlementDates'])->middleware(['auth:sanctum', 'not.staff']);

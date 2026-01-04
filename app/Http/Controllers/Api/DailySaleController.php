@@ -557,4 +557,102 @@ class DailySaleController extends Controller
             'credit_date' => $validated['credit_date'],
         ]);
     }
+
+    /**
+     * Get monthly trend data
+     */
+    public function getMonthlyTrends(Request $request)
+    {
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        $query = DailySale::query();
+
+        // Add date range filter if provided
+        if ($startDate) {
+            $query->where('date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->where('date', '<=', $endDate);
+        }
+
+        // Get all sales data
+        $sales = $query->orderBy('date', 'asc')->get();
+
+        // Group data by month
+        $monthlyData = [];
+        
+        foreach ($sales as $sale) {
+            $date = new \DateTime($sale->date);
+            $monthKey = $date->format('Y-m'); // e.g., "2024-12"
+            
+            if (!isset($monthlyData[$monthKey])) {
+                $monthlyData[$monthKey] = [
+                    'month' => $monthKey,
+                    'month_name' => $date->format('F Y'),
+                    'total_sales' => 0,
+                    'total_profits' => 0,
+                    'tobacco_25' => 0,
+                    'tobacco_20' => 0,
+                    'lottery' => 0,
+                ];
+            }
+            
+            // Accumulate values
+            $monthlyData[$monthKey]['total_sales'] += $sale->reported_total;
+            $monthlyData[$monthKey]['total_profits'] += $sale->approximate_profit;
+            $monthlyData[$monthKey]['tobacco_25'] += $sale->tobacco_25;
+            $monthlyData[$monthKey]['tobacco_20'] += $sale->tobacco_20;
+            $monthlyData[$monthKey]['lottery'] += $sale->lottery;
+        }
+
+        // Get fuel data
+        $fuelQuery = \App\Models\DailyFuel::query();
+
+        if ($startDate) {
+            $fuelQuery->where('date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $fuelQuery->where('date', '<=', $endDate);
+        }
+
+        $fuels = $fuelQuery->orderBy('date', 'asc')->get();
+
+        // Add fuel data to monthly aggregates
+        foreach ($fuels as $fuel) {
+            $date = new \DateTime($fuel->date);
+            $monthKey = $date->format('Y-m');
+            
+            if (!isset($monthlyData[$monthKey])) {
+                $monthlyData[$monthKey] = [
+                    'month' => $monthKey,
+                    'month_name' => $date->format('F Y'),
+                    'total_sales' => 0,
+                    'total_profits' => 0,
+                    'tobacco_25' => 0,
+                    'tobacco_20' => 0,
+                    'lottery' => 0,
+                    'fuel_quantity' => 0,
+                ];
+            }
+            
+            if (!isset($monthlyData[$monthKey]['fuel_quantity'])) {
+                $monthlyData[$monthKey]['fuel_quantity'] = 0;
+            }
+            
+            $monthlyData[$monthKey]['fuel_quantity'] += $fuel->total_quantity;
+        }
+
+        // Convert to array and sort by month
+        $result = array_values($monthlyData);
+        usort($result, function($a, $b) {
+            return strcmp($a['month'], $b['month']);
+        });
+
+        return response()->json([
+            'data' => $result,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
+    }
 }
