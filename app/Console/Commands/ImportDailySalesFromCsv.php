@@ -90,7 +90,7 @@ class ImportDailySalesFromCsv extends Command
                     'store_sale' => 'required|numeric|min:0',
                     'gst' => 'required|numeric|min:0',
                     'card' => 'required|numeric|min:0',
-                    'cash' => 'required|numeric|min:0',
+                    'cash' => 'required|numeric',
                     'coupon' => 'required|numeric|min:0',
                     'delivery' => 'required|numeric|min:0',
                     'reported_total' => 'required|numeric|min:0',

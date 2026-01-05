@@ -67,7 +67,8 @@ class SafedropResolutionController extends Controller
             $pendingSafedrops = $sale->safedrops_amount - $resolvedSafedrops;
             $pendingCashInHand = $sale->cash_on_hand - $resolvedCashInHand;
             
-            if ($pendingSafedrops > 0 || $pendingCashInHand > 0) {
+            // Include items with any non-zero pending amounts (positive or negative)
+            if ($pendingSafedrops != 0 || $pendingCashInHand != 0) {
                 $pendingItems[] = [
                     'id' => $sale->id,
                     'date' => $sale->date,
@@ -108,7 +109,7 @@ class SafedropResolutionController extends Controller
             'type' => ['required', Rule::in(['safedrops', 'cash_in_hand'])],
             'resolutions' => 'required|array|min:1',
             'resolutions.*.bank_account_id' => 'required|exists:bank_accounts,id',
-            'resolutions.*.amount' => 'required|numeric|min:0.01',
+            'resolutions.*.amount' => 'required|numeric|not_in:0',
             'resolutions.*.notes' => 'nullable|string|max:1000'
         ]);
 
@@ -129,14 +130,28 @@ class SafedropResolutionController extends Controller
             // Calculate total amount being resolved in this request
             $totalResolveAmount = collect($request->resolutions)->sum('amount');
             
-            // Check if total resolution doesn't exceed available amount
-            if (($currentlyResolved + $totalResolveAmount) > $totalAmount) {
-                return response()->json([
-                    'message' => 'Total resolution amount exceeds available amount',
-                    'errors' => [
-                        'resolutions' => ['The total amount being resolved exceeds the available amount.']
-                    ]
-                ], 422);
+            // For negative totals, we need to check the absolute values don't exceed
+            if ($totalAmount < 0) {
+                // For negative amounts, the resolution amounts should also be negative
+                // and their absolute value shouldn't exceed the absolute total
+                if (($currentlyResolved + $totalResolveAmount) < $totalAmount) {
+                    return response()->json([
+                        'message' => 'Total resolution amount exceeds available amount (negative case)',
+                        'errors' => [
+                            'resolutions' => ['The total amount being resolved exceeds the available negative amount.']
+                        ]
+                    ], 422);
+                }
+            } else {
+                // For positive amounts, check if total resolution doesn't exceed available amount
+                if (($currentlyResolved + $totalResolveAmount) > $totalAmount) {
+                    return response()->json([
+                        'message' => 'Total resolution amount exceeds available amount',
+                        'errors' => [
+                            'resolutions' => ['The total amount being resolved exceeds the available amount.']
+                        ]
+                    ], 422);
+                }
             }
 
             $createdResolutions = [];
