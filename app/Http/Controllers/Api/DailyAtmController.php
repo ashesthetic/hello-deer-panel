@@ -353,15 +353,18 @@ class DailyAtmController extends Controller
                 throw new \Exception('Bank account is not active');
             }
 
+            // Calculate total balance (withdraw + fee)
+            $totalBalance = $dailyAtm->withdraw + $dailyAtm->fee;
+
             // Format the date for the transaction description
             $formattedDate = Carbon::parse($dailyAtm->date)->format('F d, Y');
 
             // Create the income transaction for the resolution
             $transaction = Transaction::create([
                 'type' => 'income',
-                'amount' => $dailyAtm->withdraw,
+                'amount' => $totalBalance,
                 'description' => "ATM Withdrawal Resolution - {$formattedDate}",
-                'notes' => $request->notes ?? "Resolved ATM withdrawal from {$formattedDate}",
+                'notes' => $request->notes ?? "Resolved ATM withdrawal from {$formattedDate} (Withdraw: $" . number_format($dailyAtm->withdraw, 2) . " + Fee: $" . number_format($dailyAtm->fee, 2) . ")",
                 'bank_account_id' => $bankAccount->id,
                 'transaction_date' => now()->toDateString(),
                 'reference_number' => 'ATM-RES-' . Carbon::parse($dailyAtm->date)->format('Ymd'),
@@ -369,8 +372,8 @@ class DailyAtmController extends Controller
                 'user_id' => $user->id,
             ]);
 
-            // Add the amount to the bank account (since this is money coming in)
-            $bankAccount->increment('balance', $dailyAtm->withdraw);
+            // Add the total balance to the bank account (withdraw + fee)
+            $bankAccount->increment('balance', $totalBalance);
 
             // Mark the ATM entry as resolved
             $dailyAtm->update(['resolved' => true]);

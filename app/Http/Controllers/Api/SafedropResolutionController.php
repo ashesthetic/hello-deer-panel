@@ -187,12 +187,12 @@ class SafedropResolutionController extends Controller
                     // No need for transfer transaction since money is already in Cash
                     $cashAccount->increment('balance', $resolution['amount']);
                 } else {
-                    // Resolving to a different bank account - create transfer
+                    // Resolving to a different bank account
                     
                     // Update target bank account balance
                     $bankAccount->increment('balance', $resolution['amount']);
                     
-                    // Create Transfer transaction from Cash to Bank Account
+                    // Create transaction record for safedrop resolution
                     $transactionDescription = $type === 'safedrops' 
                         ? "Safedrop resolution for {$dailySale->date}"
                         : "Cash in hand resolution for {$dailySale->date}";
@@ -201,20 +201,35 @@ class SafedropResolutionController extends Controller
                         $transactionDescription .= " - {$resolution['notes']}";
                     }
                     
-                    $transaction = Transaction::create([
-                        'type' => 'transfer',
-                        'amount' => $resolution['amount'],
-                        'description' => $transactionDescription,
-                        'from_bank_account_id' => $cashAccount->id,
-                        'to_bank_account_id' => $bankAccount->id,
-                        'transaction_date' => now()->toDateString(),
-                        'reference_number' => 'SR-' . $safedropResolution->id,
-                        'status' => 'completed',
-                        'user_id' => $user->id,
-                    ]);
-                    
-                    // Update cash account balance (decrease)
-                    $cashAccount->decrement('balance', $resolution['amount']);
+                    if ($type === 'safedrops') {
+                        // For safedrops: Create income transaction (money comes from safedrops, not Cash account)
+                        $transaction = Transaction::create([
+                            'type' => 'income',
+                            'amount' => $resolution['amount'],
+                            'description' => $transactionDescription,
+                            'bank_account_id' => $bankAccount->id,
+                            'transaction_date' => now()->toDateString(),
+                            'reference_number' => 'SR-' . $safedropResolution->id,
+                            'status' => 'completed',
+                            'user_id' => $user->id,
+                        ]);
+                    } else {
+                        // For cash in hand: Create transfer from Cash account
+                        $transaction = Transaction::create([
+                            'type' => 'transfer',
+                            'amount' => $resolution['amount'],
+                            'description' => $transactionDescription,
+                            'from_bank_account_id' => $cashAccount->id,
+                            'to_bank_account_id' => $bankAccount->id,
+                            'transaction_date' => now()->toDateString(),
+                            'reference_number' => 'SR-' . $safedropResolution->id,
+                            'status' => 'completed',
+                            'user_id' => $user->id,
+                        ]);
+                        
+                        // Only deduct from cash account for cash in hand resolutions
+                        $cashAccount->decrement('balance', $resolution['amount']);
+                    }
                 }
                 
                 $createdResolutions[] = $safedropResolution->load(['bankAccount', 'user']);
