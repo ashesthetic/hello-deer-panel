@@ -76,57 +76,6 @@ class FuelPriceController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, FuelPrice $fuelPrice)
-    {
-        $user = $request->user();
-        
-        // Check if user can edit this fuel price entry
-        if ($user->isEditor() && $fuelPrice->user_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $request->validate([
-            'regular_87' => 'required|numeric|min:0|max:999.999',
-            'midgrade_91' => 'required|numeric|min:0|max:999.999',
-            'premium_94' => 'required|numeric|min:0|max:999.999',
-            'diesel' => 'required|numeric|min:0|max:999.999',
-        ]);
-
-        $fuelPrice->update([
-            'regular_87' => $request->regular_87,
-            'midgrade_91' => $request->midgrade_91,
-            'premium_94' => $request->premium_94,
-            'diesel' => $request->diesel,
-        ]);
-
-        return response()->json([
-            'message' => 'Fuel price updated successfully',
-            'data' => $fuelPrice->load('user')
-        ]);
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Request $request, FuelPrice $fuelPrice)
-    {
-        $user = $request->user();
-        
-        // Only admin can delete fuel prices
-        if (!$user->canDelete()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $fuelPrice->delete();
-
-        return response()->json([
-            'message' => 'Fuel price deleted successfully'
-        ]);
-    }
-
-    /**
      * Get latest fuel prices
      */
     public function latest(Request $request)
@@ -174,37 +123,5 @@ class FuelPriceController extends Controller
             'message' => 'Fuel price created successfully',
             'data' => $fuelPrice->load('user')
         ], 201);
-    }
-
-    /**
-     * Update a fuel price for staff users.
-     */
-    public function updateForStaff(Request $request, FuelPrice $fuelPrice)
-    {
-        $user = $request->user();
-        
-        // Staff users can only edit their own entries
-        if (!$user->isStaff() || $fuelPrice->user_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $request->validate([
-            'regular_87' => 'required|numeric|min:0|max:999.999',
-            'midgrade_91' => 'required|numeric|min:0|max:999.999',
-            'premium_94' => 'required|numeric|min:0|max:999.999',
-            'diesel' => 'required|numeric|min:0|max:999.999',
-        ]);
-
-        $fuelPrice->update([
-            'regular_87' => $request->regular_87,
-            'midgrade_91' => $request->midgrade_91,
-            'premium_94' => $request->premium_94,
-            'diesel' => $request->diesel,
-        ]);
-
-        return response()->json([
-            'message' => 'Fuel price updated successfully',
-            'data' => $fuelPrice->load('user')
-        ]);
     }
 }

@@ -27,6 +27,7 @@ return [
         'http://127.0.0.1:3100',
         'http://localhost:8000',
         'http://127.0.0.1:8000',
+        'https://hellodeer.test',
         
         // Production origins
         'https://hellodeer.ca',
