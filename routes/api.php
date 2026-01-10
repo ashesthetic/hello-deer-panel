@@ -56,6 +56,10 @@ Route::get('fuel-volumes/month/{year?}/{month?}', [\App\Http\Controllers\Api\Fue
 Route::get('fuel-volumes/daily-summary/{date?}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'getDailySummary'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('fuel-volumes', \App\Http\Controllers\Api\FuelVolumeController::class)->middleware(['auth:sanctum', 'not.staff']);
 
+// Fuel Price routes (Admin has full access, Staff can add/edit only)
+Route::get('/fuel-prices/latest', [\App\Http\Controllers\Api\FuelPriceController::class, 'latest'])->middleware(['auth:sanctum']);
+Route::apiResource('fuel-prices', \App\Http\Controllers\Api\FuelPriceController::class)->middleware(['auth:sanctum']);
+
 // Vendor routes
 Route::apiResource('vendors', \App\Http\Controllers\Api\VendorController::class)->middleware(['auth:sanctum', 'not.staff']);
 
@@ -125,6 +129,14 @@ Route::post('/staff/vendor-invoices', [\App\Http\Controllers\Api\VendorInvoiceCo
 Route::get('/staff/fuel-volumes', [\App\Http\Controllers\Api\FuelVolumeController::class, 'index'])->middleware(['auth:sanctum']);
 Route::get('/staff/fuel-volumes/{fuelVolume}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'show'])->middleware(['auth:sanctum']);
 Route::post('/staff/fuel-volumes', [\App\Http\Controllers\Api\FuelVolumeController::class, 'storeForStaff'])->middleware(['auth:sanctum']);
+
+// Staff-specific Fuel Price routes (Limited access - Add and edit own entries)
+Route::get('/staff/fuel-prices', [\App\Http\Controllers\Api\FuelPriceController::class, 'index'])->middleware(['auth:sanctum']);
+Route::get('/staff/fuel-prices/latest', [\App\Http\Controllers\Api\FuelPriceController::class, 'latest'])->middleware(['auth:sanctum']);
+Route::get('/staff/fuel-prices/{fuelPrice}', [\App\Http\Controllers\Api\FuelPriceController::class, 'show'])->middleware(['auth:sanctum']);
+Route::post('/staff/fuel-prices', [\App\Http\Controllers\Api\FuelPriceController::class, 'storeForStaff'])->middleware(['auth:sanctum']);
+Route::put('/staff/fuel-prices/{fuelPrice}', [\App\Http\Controllers\Api\FuelPriceController::class, 'updateForStaff'])->middleware(['auth:sanctum']);
+Route::patch('/staff/fuel-prices/{fuelPrice}', [\App\Http\Controllers\Api\FuelPriceController::class, 'updateForStaff'])->middleware(['auth:sanctum']);
 
 // Provider routes
 Route::apiResource('providers', \App\Http\Controllers\Api\ProviderController::class)->middleware(['auth:sanctum', 'not.staff']);
