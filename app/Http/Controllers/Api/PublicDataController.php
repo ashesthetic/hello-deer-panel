@@ -21,10 +21,10 @@ class PublicDataController extends Controller
 
             $data = [
                 'fuel' => [
-                    'regular' => $latestFuelPrice ? $latestFuelPrice->regular_87 : null,
-                    'midgrade' => $latestFuelPrice ? $latestFuelPrice->midgrade_91 : null,
-                    'premium' => $latestFuelPrice ? $latestFuelPrice->premium_94 : null,
-                    'diesel' => $latestFuelPrice ? $latestFuelPrice->diesel : null,
+                    'regular' => $latestFuelPrice ? round($latestFuelPrice->regular_87, 1) : null,
+                    'midgrade' => $latestFuelPrice ? round($latestFuelPrice->midgrade_91, 1) : null,
+                    'premium' => $latestFuelPrice ? round($latestFuelPrice->premium_94, 1) : null,
+                    'diesel' => $latestFuelPrice ? round($latestFuelPrice->diesel, 1) : null,
                 ]
             ];
 
