@@ -18,6 +18,9 @@ use App\Http\Controllers\Auth\AuthController;
 // Public data routes (no authentication required)
 Route::get('/public-data', [\App\Http\Controllers\Api\PublicDataController::class, 'index']);
 
+// Public contact form submission (no authentication required)
+Route::post('/contact', [\App\Http\Controllers\Api\PublicContactController::class, 'store']);
+
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
@@ -78,6 +81,10 @@ Route::apiResource('safedrop-resolutions', \App\Http\Controllers\Api\SafedropRes
 
 // User management routes (Admin only)
 Route::apiResource('users', \App\Http\Controllers\Api\UserController::class)->middleware(['auth:sanctum', 'can.manage.users']);
+
+// Contact Submissions routes (Admin only)
+Route::get('/contact-submissions/stats', [\App\Http\Controllers\Admin\ContactSubmissionController::class, 'stats'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::apiResource('contact-submissions', \App\Http\Controllers\Admin\ContactSubmissionController::class)->only(['index', 'show', 'destroy'])->middleware(['auth:sanctum', 'can.manage.users']);
 // User profile routes
 Route::get('/user/profile', [\App\Http\Controllers\Api\UserController::class, 'profile'])->middleware('auth:sanctum');
 Route::put('/user/profile', [\App\Http\Controllers\Api\UserController::class, 'updateProfile'])->middleware('auth:sanctum');
