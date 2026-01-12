@@ -21,6 +21,9 @@ class FuelVolume extends Model
         'added_regular',
         'added_premium',
         'added_diesel',
+        'regular_price',
+        'premium_price',
+        'diesel_price',
         'user_id',
     ];
 
@@ -35,6 +38,9 @@ class FuelVolume extends Model
         'added_regular' => 'decimal:2',
         'added_premium' => 'decimal:2',
         'added_diesel' => 'decimal:2',
+        'regular_price' => 'decimal:3',
+        'premium_price' => 'decimal:3',
+        'diesel_price' => 'decimal:3',
     ];
 
     /**
