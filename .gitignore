@@ -26,6 +26,7 @@ yarn-error.log
 /storage/framework/views/*
 /database/database.sqlite
 front-end/
+storage/app/google-service-account.json
 
 # Database transfer scripts
 db_transfer.sh
