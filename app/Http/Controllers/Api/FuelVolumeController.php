@@ -7,6 +7,9 @@ use App\Models\FuelVolume;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Utils\TimezoneUtil;
+use Illuminate\Support\Facades\Log;
+use App\Utils\FuelSheetUtil;
+
 
 class FuelVolumeController extends Controller
 {
@@ -118,6 +121,7 @@ class FuelVolumeController extends Controller
         $data['user_id'] = $user->id; // Associate with current user
         
         $fuelVolume = FuelVolume::create($data);
+		FuelSheetUtil::updateFuelPrice( $data['shift'], $data['regular_price'], $data['date'], $data['added_regular'] );
         
         // Add calculated fields
         $fuelVolume->volume_end_of_day = $fuelVolume->volume_end_of_day;
@@ -172,6 +176,7 @@ class FuelVolumeController extends Controller
         $data['user_id'] = $user->id; // Associate with current user
         
         $fuelVolume = FuelVolume::create($data);
+		FuelSheetUtil::updateFuelPrice( $data['shift'], $data['regular_price'], $data['date'], $data['added_regular'] );
         
         // Add calculated fields
         $fuelVolume->volume_end_of_day = $fuelVolume->volume_end_of_day;
@@ -248,6 +253,7 @@ class FuelVolumeController extends Controller
         }
 
         $fuelVolume->update($request->all());
+		FuelSheetUtil::updateFuelPrice( $request->shift, $request->regular_price, $request->date );
         
         // Add calculated fields
         $fuelVolume->volume_end_of_day = $fuelVolume->volume_end_of_day;

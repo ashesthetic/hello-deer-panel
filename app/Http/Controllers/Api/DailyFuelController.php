@@ -7,6 +7,7 @@ use App\Models\DailyFuel;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Utils\TimezoneUtil;
+use App\Utils\FuelSheetUtil;
 
 class DailyFuelController extends Controller
 {
@@ -99,7 +100,8 @@ class DailyFuelController extends Controller
         $data = $request->all();
         $data['user_id'] = $user->id; // Associate with current user
         
-        $dailyFuel = DailyFuel::create($data);
+		$dailyFuel = DailyFuel::create($data);
+		FuelSheetUtil::updateFuelVolumeAndSales( $data['date'], $data['regular_quantity'], $data['regular_total_sale'] );
         
         // Add calculated fields
         $dailyFuel->total_quantity = ($dailyFuel->regular_quantity ?? 0) + ($dailyFuel->plus_quantity ?? 0) + ($dailyFuel->sup_plus_quantity ?? 0) + ($dailyFuel->diesel_quantity ?? 0);
@@ -169,6 +171,7 @@ class DailyFuelController extends Controller
         ]);
 
         $dailyFuel->update($request->all());
+		FuelSheetUtil::updateFuelVolumeAndSales( $request->date, $request->regular_quantity, $request->regular_total_sale );
         
         // Add calculated fields
         $dailyFuel->total_quantity = ($dailyFuel->regular_quantity ?? 0) + ($dailyFuel->plus_quantity ?? 0) + ($dailyFuel->sup_plus_quantity ?? 0) + ($dailyFuel->diesel_quantity ?? 0);
