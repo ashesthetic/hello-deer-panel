@@ -3,7 +3,7 @@
 namespace App\Observers;
 
 use App\Models\FuelVolume;
-use App\Jobs\UpdateGoogleSheetJob;
+//use App\Jobs\UpdateGoogleSheetJob;
 use Illuminate\Support\Facades\Log;
 
 class FuelVolumeObserver
@@ -21,7 +21,7 @@ class FuelVolumeObserver
                 'shift' => $fuelVolume->shift
             ]);
             
-            UpdateGoogleSheetJob::dispatch($fuelVolume, 'created');
+            //UpdateGoogleSheetJob::dispatch($fuelVolume, 'created');
         }
     }
 
@@ -39,7 +39,7 @@ class FuelVolumeObserver
                 'changed_fields' => $this->getChangedPriceFields($fuelVolume)
             ]);
             
-            UpdateGoogleSheetJob::dispatch($fuelVolume, 'updated');
+            //UpdateGoogleSheetJob::dispatch($fuelVolume, 'updated');
         }
     }
 

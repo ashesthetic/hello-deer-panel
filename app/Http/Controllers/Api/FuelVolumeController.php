@@ -253,7 +253,7 @@ class FuelVolumeController extends Controller
         }
 
         $fuelVolume->update($request->all());
-		FuelSheetUtil::updateFuelPrice( $request->shift, $request->regular_price, $request->date );
+		FuelSheetUtil::updateFuelPrice( $request->shift, $request->regular_price, $request->date, $request->added_regular );
         
         // Add calculated fields
         $fuelVolume->volume_end_of_day = $fuelVolume->volume_end_of_day;
