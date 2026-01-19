@@ -75,6 +75,13 @@ class FuelSheetUtil
 
             $success = self::updateCell($range, number_format($price, 3));
 
+			if (strtolower($shift) === 'evening') {
+				$column = 'B';
+				$range = "{$monthTab}!{$column}{$row}";
+				$price = $price / 1.05;
+				$success = self::updateCell($range, $price);
+			}
+
 			if ($addedRegular !== "0") {
 				$addedRange = "{$monthTab}!H{$row}"; // Assuming column H is for added regular
 				// Log::info("Updating cell {$addedRange} with value {$addedRegular}");
@@ -118,12 +125,6 @@ class FuelSheetUtil
             $range = "{$monthTab}!{$column}{$row}";
             // Log::info("Updating cell {$range} with value {$amount}");
             $success = self::updateCell($range, $amount);
-
-			$column = 'B';
-			$range = "{$monthTab}!{$column}{$row}";
-			$price = ( $amount / $volumne ) / 1.05;
-			$success = self::updateCell($range, $price);
-
 
             if ($success) {
                 // Log::info("Successfully updated fuel price for {$shift} shift on {$date}");
