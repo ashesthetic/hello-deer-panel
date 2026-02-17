@@ -86,6 +86,7 @@ class VendorController extends Controller
             'possible_products' => $request->possible_products,
             'payment_method' => $request->payment_method,
             'notes' => $request->notes,
+            'private' => $request->input('private', false),
             'user_id' => $user->id,
         ];
 
@@ -154,6 +155,7 @@ class VendorController extends Controller
             'account_number' => 'nullable|string|required_if:payment_method,Direct Deposit',
             'void_check' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
             'notes' => 'nullable|string',
+            'private' => 'nullable|boolean',
         ]);
 
         $data = [
@@ -165,6 +167,7 @@ class VendorController extends Controller
             'possible_products' => $request->possible_products,
             'payment_method' => $request->payment_method,
             'notes' => $request->notes,
+            'private' => $request->input('private', false),
         ];
 
         // Handle payment method specific fields

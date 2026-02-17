@@ -24,11 +24,12 @@ class Vendor extends Model
         'account_number',
         'void_check_path',
         'notes',
+        'private',
         'user_id',
     ];
 
     protected $casts = [
-        //
+        'private' => 'boolean',
     ];
 
     /**
