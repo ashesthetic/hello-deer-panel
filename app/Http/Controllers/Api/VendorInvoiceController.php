@@ -415,14 +415,13 @@ class VendorInvoiceController extends Controller
         
         $query = Vendor::select('id', 'name');
         
-        // Editors can only see their own vendors, Staff and Admin can see all
+        // Editors can only see their own vendors, Admins can see all
         if ($user->isEditor()) {
             $query->where('user_id', $user->id);
         }
         
-        // Exclude private vendors for all users (they can still see existing invoices with private vendors)
-        // Staff users should not see private vendors in the dropdown
-        $query->where('private', false);
+        // Note: Admins and Editors can see all vendors including private ones
+        // Private vendors are only hidden for Staff users (via separate endpoint)
         
         $vendors = $query->orderBy('name')->get();
         
