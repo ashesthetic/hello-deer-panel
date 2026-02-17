@@ -267,6 +267,59 @@ class FuelVolumeController extends Controller
     }
 
     /**
+     * Update fuel volume for Staff users
+     */
+    public function updateForStaff(Request $request, FuelVolume $fuelVolume)
+    {
+        $user = $request->user();
+        
+        // Staff users are specifically allowed to update fuel volumes through this endpoint
+        if (!$user->isStaff()) {
+            return response()->json(['message' => 'Unauthorized. This endpoint is only for staff users.'], 403);
+        }
+
+        $request->validate([
+            'date' => 'required|date',
+            'shift' => ['required', Rule::in(['morning', 'evening'])],
+            'regular_tc_volume' => 'nullable|numeric|min:0',
+            'regular_product_height' => 'nullable|numeric|min:0',
+            'premium_tc_volume' => 'nullable|numeric|min:0',
+            'premium_product_height' => 'nullable|numeric|min:0',
+            'diesel_tc_volume' => 'nullable|numeric|min:0',
+            'diesel_product_height' => 'nullable|numeric|min:0',
+            'added_regular' => 'nullable|numeric|min:0',
+            'added_premium' => 'nullable|numeric|min:0',
+            'added_diesel' => 'nullable|numeric|min:0',
+        ]);
+
+        // Check if entry already exists for this date and shift (excluding current entry)
+        $existingEntry = FuelVolume::where('date', $request->date)
+            ->where('shift', $request->shift)
+            ->where('id', '!=', $fuelVolume->id)
+            ->first();
+
+        if ($existingEntry) {
+            return response()->json([
+                'message' => 'An entry already exists for this date and shift',
+                'data' => $existingEntry
+            ], 422);
+        }
+
+        $fuelVolume->update($request->all());
+		FuelSheetUtil::updateFuelPrice( $request->shift, $request->regular_price, $request->date, $request->added_regular );
+        
+        // Add calculated fields
+        $fuelVolume->volume_end_of_day = $fuelVolume->volume_end_of_day;
+        $fuelVolume->evening_shift = $fuelVolume->evening_shift;
+        $fuelVolume->morning_shift = $fuelVolume->morning_shift;
+
+        return response()->json([
+            'message' => 'Fuel volume updated successfully',
+            'data' => $fuelVolume
+        ]);
+    }
+
+    /**
      * Get fuel volumes for a specific month
      */
     public function getByMonth(Request $request, $year = null, $month = null)

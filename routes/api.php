@@ -137,10 +137,11 @@ Route::get('/staff/vendor-invoices', [\App\Http\Controllers\Api\VendorInvoiceCon
 Route::get('/staff/vendor-invoices/{vendorInvoice}', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'show'])->middleware(['auth:sanctum']);
 Route::post('/staff/vendor-invoices', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'storeForStaff'])->middleware(['auth:sanctum']);
 
-// Staff-specific Fuel Volume routes (Limited access - Add only)
+// Staff-specific Fuel Volume routes (Limited access - Add and Edit)
 Route::get('/staff/fuel-volumes', [\App\Http\Controllers\Api\FuelVolumeController::class, 'index'])->middleware(['auth:sanctum']);
 Route::get('/staff/fuel-volumes/{fuelVolume}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'show'])->middleware(['auth:sanctum']);
 Route::post('/staff/fuel-volumes', [\App\Http\Controllers\Api\FuelVolumeController::class, 'storeForStaff'])->middleware(['auth:sanctum']);
+Route::put('/staff/fuel-volumes/{fuelVolume}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'updateForStaff'])->middleware(['auth:sanctum']);
 
 // Staff-specific Fuel Price routes (Add only - no edit/delete)
 Route::get('/staff/fuel-prices', [\App\Http\Controllers\Api\FuelPriceController::class, 'index'])->middleware(['auth:sanctum']);
