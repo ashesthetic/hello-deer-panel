@@ -132,7 +132,7 @@ Route::get('/vendor-invoices/{vendorInvoice}/view-link', [\App\Http\Controllers\
 Route::apiResource('vendor-invoices', \App\Http\Controllers\Api\VendorInvoiceController::class)->middleware(['auth:sanctum', 'not.staff']);
 
 // Staff-specific Vendor Invoice routes (Limited access)
-Route::get('/staff/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendors'])->middleware(['auth:sanctum']);
+Route::get('/staff/vendor-invoices/vendors', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'getVendorsForStaff'])->middleware(['auth:sanctum']);
 Route::get('/staff/vendor-invoices', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'index'])->middleware(['auth:sanctum']);
 Route::get('/staff/vendor-invoices/{vendorInvoice}', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'show'])->middleware(['auth:sanctum']);
 Route::post('/staff/vendor-invoices', [\App\Http\Controllers\Api\VendorInvoiceController::class, 'storeForStaff'])->middleware(['auth:sanctum']);

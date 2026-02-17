@@ -39,9 +39,11 @@ class VendorInvoiceController extends Controller
             $query->where('user_id', $user->id);
         }
         
-        // Staff users can only see their own entries
+        // Staff users can only see invoices where vendor is not private
         if ($user->isStaff()) {
-            $query->where('user_id', $user->id);
+            $query->whereHas('vendor', function($vendorQuery) {
+                $vendorQuery->where('private', false);
+            });
         }
         
         // Add search filter if provided
@@ -418,7 +420,31 @@ class VendorInvoiceController extends Controller
             $query->where('user_id', $user->id);
         }
         
+        // Exclude private vendors for all users (they can still see existing invoices with private vendors)
+        // Staff users should not see private vendors in the dropdown
+        $query->where('private', false);
+        
         $vendors = $query->orderBy('name')->get();
+        
+        return response()->json($vendors);
+    }
+
+    /**
+     * Get vendors for Staff users (only non-private vendors)
+     */
+    public function getVendorsForStaff(Request $request)
+    {
+        $user = $request->user();
+        
+        // Only staff users can use this endpoint
+        if (!$user->isStaff()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        
+        $vendors = Vendor::select('id', 'name')
+            ->where('private', false)
+            ->orderBy('name')
+            ->get();
         
         return response()->json($vendors);
     }
