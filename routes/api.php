@@ -244,6 +244,21 @@ Route::delete('/lottery/{id}/force-delete', [\App\Http\Controllers\LotteryContro
 Route::delete('/lottery/{id}', [\App\Http\Controllers\LotteryController::class, 'destroy'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('lottery', \App\Http\Controllers\LotteryController::class)->except(['destroy'])->middleware(['auth:sanctum']);
 
+// Expense Type routes (Admin only - Staff has no access)
+Route::get('/expense-types/roots', [\App\Http\Controllers\ExpenseTypeController::class, 'roots'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/expense-types/with-trashed', [\App\Http\Controllers\ExpenseTypeController::class, 'withTrashed'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::post('/expense-types/{id}/restore', [\App\Http\Controllers\ExpenseTypeController::class, 'restore'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('/expense-types/{id}/force-delete', [\App\Http\Controllers\ExpenseTypeController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::apiResource('expense-types', \App\Http\Controllers\ExpenseTypeController::class)->middleware(['auth:sanctum', 'can.manage.users']);
+
+// Expense Breakdown routes (Admin only - Staff has no access)
+Route::get('/expense-breakdowns/summary', [\App\Http\Controllers\ExpenseBreakdownController::class, 'summary'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/expense-breakdowns/expense-types', [\App\Http\Controllers\ExpenseBreakdownController::class, 'getExpenseTypes'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/expense-breakdowns/with-trashed', [\App\Http\Controllers\ExpenseBreakdownController::class, 'withTrashed'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::post('/expense-breakdowns/{id}/restore', [\App\Http\Controllers\ExpenseBreakdownController::class, 'restore'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('/expense-breakdowns/{id}/force-delete', [\App\Http\Controllers\ExpenseBreakdownController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::apiResource('expense-breakdowns', \App\Http\Controllers\ExpenseBreakdownController::class)->middleware(['auth:sanctum', 'can.manage.users']);
+
 // Facebook routes
 Route::post('/facebook/post-fuel-prices', [\App\Http\Controllers\Api\FacebookController::class, 'postFuelPrices'])->middleware('auth:sanctum');
 Route::get('/facebook/test-connection', [\App\Http\Controllers\Api\FacebookController::class, 'testConnection'])->middleware('auth:sanctum');
