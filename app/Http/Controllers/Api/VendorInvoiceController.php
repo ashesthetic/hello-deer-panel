@@ -93,7 +93,19 @@ class VendorInvoiceController extends Controller
         }
         $query->orderBy($sortBy, $sortDirection);
         
-        $invoices = $query->paginate($perPage);
+        // When per_page is not provided (ALL option), get all records with pagination structure
+        if (!$request->has('per_page')) {
+            $allInvoices = $query->get();
+            $invoices = new \Illuminate\Pagination\LengthAwarePaginator(
+                $allInvoices,
+                $allInvoices->count(),
+                $allInvoices->count(),
+                1,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        } else {
+            $invoices = $query->paginate($perPage);
+        }
         
         return response()->json($invoices);
     }
