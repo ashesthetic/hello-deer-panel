@@ -441,47 +441,85 @@ class EmployeeController extends Controller
      */
     public function getPayDays()
     {
-        $firstPayDay = TimezoneUtil::parse('2025-07-24'); // First pay day (Thursday)
         $today = TimezoneUtil::now();
-        
-        // Calculate how many pay periods have passed since the first pay day
-        $weeksSinceFirstPay = $today->diffInWeeks($firstPayDay, false);
-        $payPeriodsPassed = floor($weeksSinceFirstPay / 2);
-        
-        // Current pay day is the first pay day minus the passed pay periods
-        $currentPayDay = $firstPayDay->copy()->subWeeks($payPeriodsPassed * 2);
-        
         $payDays = [];
         
-        // Add previous pay days (last 6 pay periods)
-        for ($i = 1; $i <= 6; $i++) {
-            $payDay = $currentPayDay->copy()->subWeeks($i * 2);
+        // Semi-monthly pay schedule:
+        // Pay Period 1st-15th -> Pay Date 22nd of same month
+        // Pay Period 16th-last day -> Pay Date 7th of next month
+        
+        // Generate pay days for the last 6 months and next month
+        $startMonth = $today->copy()->subMonths(6);
+        $endMonth = $today->copy()->addMonths(1);
+        
+        $currentMonth = $startMonth->copy()->startOfMonth();
+        
+        while ($currentMonth->lessThanOrEqualTo($endMonth)) {
+            $year = $currentMonth->year;
+            $month = $currentMonth->month;
+            
+            // First pay date of the month (22nd) - pays for 1st-15th of same month
+            $payDate22 = TimezoneUtil::parse("{$year}-{$month}-22");
+            
+            // Second pay date of the month (7th) - pays for 16th-last day of previous month
+            $payDate7 = TimezoneUtil::parse("{$year}-{$month}-07");
+            
+            // Determine if each pay date is previous, current, or upcoming
+            $type22 = 'previous';
+            $type7 = 'previous';
+            
+            // A pay date is "current" if today is within its pay period or between period end and pay date
+            // For pay date 22nd: period is 1st-15th, so current if today is between 1st and 22nd
+            if ($today->year == $year && $today->month == $month && $today->day >= 1 && $today->day <= 22) {
+                $type22 = 'current';
+            } elseif ($payDate22->greaterThan($today)) {
+                $type22 = 'upcoming';
+            }
+            
+            // For pay date 7th: period is 16th-last day of previous month
+            $prevMonth = $currentMonth->copy()->subMonth();
+            if ($today->year == $prevMonth->year && $today->month == $prevMonth->month && $today->day >= 16) {
+                $type7 = 'current';
+            } elseif ($today->year == $year && $today->month == $month && $today->day <= 7) {
+                $type7 = 'current';
+            } elseif ($payDate7->greaterThan($today)) {
+                $type7 = 'upcoming';
+            }
+            
             $payDays[] = [
-                'date' => $payDay->format('Y-m-d'),
-                'label' => $payDay->format('l, M j, Y'),
-                'type' => 'previous'
+                'date' => $payDate7->format('Y-m-d'),
+                'label' => $payDate7->format('M j, Y') . ' (Period: ' . $prevMonth->format('M') . ' 16-' . $prevMonth->daysInMonth . ')',
+                'type' => $type7
             ];
+            
+            $payDays[] = [
+                'date' => $payDate22->format('Y-m-d'),
+                'label' => $payDate22->format('M j, Y') . ' (Period: ' . $currentMonth->format('M') . ' 1-15)',
+                'type' => $type22
+            ];
+            
+            $currentMonth->addMonth();
         }
-        
-        // Add current pay day
-        $payDays[] = [
-            'date' => $currentPayDay->format('Y-m-d'),
-            'label' => $currentPayDay->format('l, M j, Y'),
-            'type' => 'current'
-        ];
-        
-        // Add next pay day
-        $nextPayDay = $currentPayDay->copy()->addWeeks(2);
-        $payDays[] = [
-            'date' => $nextPayDay->format('Y-m-d'),
-            'label' => $nextPayDay->format('l, M j, Y'),
-            'type' => 'upcoming'
-        ];
         
         // Sort by date (oldest first)
         usort($payDays, function($a, $b) {
             return strcmp($a['date'], $b['date']);
         });
+        
+        // Keep only reasonable range: last 6 pay periods + current + next
+        $currentIndex = -1;
+        for ($i = 0; $i < count($payDays); $i++) {
+            if ($payDays[$i]['type'] === 'current') {
+                $currentIndex = $i;
+                break;
+            }
+        }
+        
+        if ($currentIndex >= 0) {
+            $start = max(0, $currentIndex - 6);
+            $end = min(count($payDays) - 1, $currentIndex + 1);
+            $payDays = array_slice($payDays, $start, $end - $start + 1);
+        }
         
         return response()->json([
             'success' => true,
@@ -511,11 +549,34 @@ class EmployeeController extends Controller
         $payDay = TimezoneUtil::parse($request->pay_day);
         $employeeIds = $request->employee_ids;
         
-        // Calculate work period for the selected pay day (2 weeks: Thursday to Wednesday)
-        // Period ends 8 days before pay day (Wednesday)
-        // Period starts 21 days before pay day (Thursday, 2 weeks prior to period end)
-        $periodEnd = $payDay->copy()->subDays(8);
-        $periodStart = $payDay->copy()->subDays(21);
+        // Calculate work period based on semi-monthly pay schedule
+        // Pay date 22nd -> Period: 1st-15th of same month
+        // Pay date 7th -> Period: 16th-last day of previous month
+        
+        $payDayOfMonth = (int) $payDay->format('d');
+        
+        if ($payDayOfMonth == 22) {
+            // Period: 1st to 15th of the same month
+            $periodStart = $payDay->copy()->startOfMonth();
+            $periodEnd = $payDay->copy()->setDay(15);
+        } elseif ($payDayOfMonth == 7) {
+            // Period: 16th to last day of previous month
+            $prevMonth = $payDay->copy()->subMonth();
+            $periodStart = $prevMonth->copy()->setDay(16);
+            $periodEnd = $prevMonth->copy()->endOfMonth();
+        } else {
+            // Fallback for custom dates: assume 22nd if in first half, 7th if in second half
+            if ($payDayOfMonth <= 15) {
+                // Treat as 7th: previous month 16th to last day
+                $prevMonth = $payDay->copy()->subMonth();
+                $periodStart = $prevMonth->copy()->setDay(16);
+                $periodEnd = $prevMonth->copy()->endOfMonth();
+            } else {
+                // Treat as 22nd: current month 1st to 15th
+                $periodStart = $payDay->copy()->startOfMonth();
+                $periodEnd = $payDay->copy()->setDay(15);
+            }
+        }
         
         // Get selected employees
         $employees = Employee::whereIn('id', $employeeIds)->get();
@@ -588,11 +649,40 @@ class EmployeeController extends Controller
         $payDay = TimezoneUtil::parse($request->pay_day);
         $employeeIds = $request->employee_ids;
         
-        // Calculate work period for the selected pay day (2 weeks: Thursday to Wednesday)
-        // Period ends 8 days before pay day (Wednesday)
-        // Period starts 21 days before pay day (Thursday, 2 weeks prior to period end)
-        $periodEnd = $payDay->copy()->subDays(8);
-        $periodStart = $payDay->copy()->subDays(21);
+        // Calculate work period based on semi-monthly pay schedule
+        // Pay date 22nd -> Period: 1st-15th of same month
+        // Pay date 7th -> Period: 16th-last day of previous month
+        
+        $payDayOfMonth = (int) $payDay->format('d');
+        
+        if ($payDayOfMonth == 22) {
+            // Period: 1st to 15th of the same month
+            $periodStart = $payDay->copy()->startOfMonth();
+            $periodEnd = $payDay->copy()->setDay(15);
+        } elseif ($payDayOfMonth == 7) {
+            // Period: 16th to last day of previous month
+            $prevMonth = $payDay->copy()->subMonth();
+            $periodStart = $prevMonth->copy()->setDay(16);
+            $periodEnd = $prevMonth->copy()->endOfMonth();
+        } else {
+            // Fallback for custom dates: assume 22nd if in first half, 7th if in second half
+            if ($payDayOfMonth <= 15) {
+                // Treat as 7th: previous month 16th to last day
+                $prevMonth = $payDay->copy()->subMonth();
+                $periodStart = $prevMonth->copy()->setDay(16);
+                $periodEnd = $prevMonth->copy()->endOfMonth();
+            } else {
+                // Treat as 22nd: current month 1st to 15th
+                $periodStart = $payDay->copy()->startOfMonth();
+                $periodEnd = $payDay->copy()->setDay(15);
+            }
+        }
+        
+        // Calculate expected work days in period for overtime threshold
+        // Approximate: 40 hours/week * 2 weeks = 80 hours for semi-monthly
+        $daysInPeriod = $periodStart->diffInDays($periodEnd) + 1;
+        $expectedWeeksInPeriod = $daysInPeriod / 7;
+        $regularHoursThreshold = $expectedWeeksInPeriod * 40; // 40 hours per week
         
         // Get selected employees
         $employees = Employee::whereIn('id', $employeeIds)->get();
@@ -609,8 +699,8 @@ class EmployeeController extends Controller
             $hourlyRate = $employee->hourly_rate;
             
             // Calculate earnings
-            $regularHours = min($totalHours, 80); // Assuming 80 hours per pay period (40 hours/week * 2 weeks)
-            $overtimeHours = max(0, $totalHours - 80);
+            $regularHours = min($totalHours, $regularHoursThreshold); // Use dynamic regular hours threshold based on period length
+            $overtimeHours = max(0, $totalHours - $regularHoursThreshold);
             $regularPay = $regularHours * $hourlyRate;
             $overtimePay = $overtimeHours * ($hourlyRate * 1.5); // 1.5x for overtime
             
@@ -624,7 +714,7 @@ class EmployeeController extends Controller
             $totalEarnings = $regularPay + $overtimePay + $statHolidayPay + $vacationPay;
             
             // Calculate YTD totals (simplified - would need to track this in database)
-            $ytdEarnings = $totalEarnings * 26; // Assuming 26 pay periods per year
+            $ytdEarnings = $totalEarnings * 24; // Assuming 24 pay periods per year for semi-monthly (12 months * 2 periods)
             $ytdCPP = 0;
             $ytdEI = 0;
             $ytdFederalTax = 0;
@@ -633,15 +723,15 @@ class EmployeeController extends Controller
             $cppRate = 0.0595; // 5.95%
             $cppBasicExemption = 3500;
             $cppMaxEarnings = 68500;
-            $cppContribution = min(max(0, $totalEarnings - ($cppBasicExemption / 26)), $cppMaxEarnings / 26) * $cppRate;
+            $cppContribution = min(max(0, $totalEarnings - ($cppBasicExemption / 24)), $cppMaxEarnings / 24) * $cppRate;
             
             $eiRate = 0.0166; // 1.66%
             $eiMaxInsurableEarnings = 63200;
-            $eiContribution = min($totalEarnings, $eiMaxInsurableEarnings / 26) * $eiRate;
+            $eiContribution = min($totalEarnings, $eiMaxInsurableEarnings / 24) * $eiRate;
             
             // Federal income tax (simplified calculation)
-            $federalTax = $this->calculateFederalTax($totalEarnings * 26); // Annualized for tax calculation
-            $federalTaxPerPeriod = $federalTax / 26;
+            $federalTax = $this->calculateFederalTax($totalEarnings * 24); // Annualized for tax calculation
+            $federalTaxPerPeriod = $federalTax / 24;
             
             $totalDeductions = $cppContribution + $eiContribution + $federalTaxPerPeriod;
             $netPay = $totalEarnings - $totalDeductions;
@@ -667,25 +757,25 @@ class EmployeeController extends Controller
                         'hours' => $regularHours,
                         'rate' => $hourlyRate,
                         'current_amount' => round($regularPay, 2),
-                        'ytd_amount' => round($regularPay * 26, 2)
+                        'ytd_amount' => round($regularPay * 24, 2)
                     ],
                     'stat_holiday_paid' => [
                         'hours' => $statHolidayHours,
                         'rate' => $hourlyRate,
                         'current_amount' => round($statHolidayPay, 2),
-                        'ytd_amount' => round($statHolidayPay * 26, 2)
+                        'ytd_amount' => round($statHolidayPay * 24, 2)
                     ],
                     'overtime' => [
                         'hours' => $overtimeHours,
                         'rate' => $hourlyRate * 1.5,
                         'current_amount' => round($overtimePay, 2),
-                        'ytd_amount' => round($overtimePay * 26, 2)
+                        'ytd_amount' => round($overtimePay * 24, 2)
                     ],
                     'vac_paid' => [
                         'hours' => 0,
                         'rate' => $hourlyRate,
                         'current_amount' => round($vacationPaid, 2),
-                        'ytd_amount' => round($vacationPaid * 26, 2)
+                        'ytd_amount' => round($vacationPaid * 24, 2)
                     ],
                     'total' => [
                         'hours' => $totalHours,
@@ -715,9 +805,9 @@ class EmployeeController extends Controller
                 'net_pay' => round($netPay, 2),
                 'vacation_summary' => [
                     'vac_earned' => round($vacationEarned, 2),
-                    'vac_earned_ytd' => round($vacationEarned * 26, 2),
+                    'vac_earned_ytd' => round($vacationEarned * 24, 2),
                     'vac_paid' => round($vacationPaid, 2),
-                    'vac_paid_ytd' => round($vacationPaid * 26, 2)
+                    'vac_paid_ytd' => round($vacationPaid * 24, 2)
                 ]
             ];
         }
@@ -784,9 +874,39 @@ class EmployeeController extends Controller
         $payDay = TimezoneUtil::parse($request->pay_day);
         $employeeIds = $request->employee_ids;
         
-        // Calculate work period for the selected pay day
-        $periodStart = $payDay->copy()->subDays(20);
-        $periodEnd = $payDay->copy()->subDays(7);
+        // Calculate work period based on semi-monthly pay schedule
+        // Pay date 22nd -> Period: 1st-15th of same month
+        // Pay date 7th -> Period: 16th-last day of previous month
+        
+        $payDayOfMonth = (int) $payDay->format('d');
+        
+        if ($payDayOfMonth == 22) {
+            // Period: 1st to 15th of the same month
+            $periodStart = $payDay->copy()->startOfMonth();
+            $periodEnd = $payDay->copy()->setDay(15);
+        } elseif ($payDayOfMonth == 7) {
+            // Period: 16th to last day of previous month
+            $prevMonth = $payDay->copy()->subMonth();
+            $periodStart = $prevMonth->copy()->setDay(16);
+            $periodEnd = $prevMonth->copy()->endOfMonth();
+        } else {
+            // Fallback for custom dates: assume 22nd if in first half, 7th if in second half
+            if ($payDayOfMonth <= 15) {
+                // Treat as 7th: previous month 16th to last day
+                $prevMonth = $payDay->copy()->subMonth();
+                $periodStart = $prevMonth->copy()->setDay(16);
+                $periodEnd = $prevMonth->copy()->endOfMonth();
+            } else {
+                // Treat as 22nd: current month 1st to 15th
+                $periodStart = $payDay->copy()->startOfMonth();
+                $periodEnd = $payDay->copy()->setDay(15);
+            }
+        }
+        
+        // Calculate expected work days in period for overtime threshold
+        $daysInPeriod = $periodStart->diffInDays($periodEnd) + 1;
+        $expectedWeeksInPeriod = $daysInPeriod / 7;
+        $regularHoursThreshold = $expectedWeeksInPeriod * 40; // 40 hours per week
         
         // Get selected employees
         $employees = Employee::whereIn('id', $employeeIds)->get();
@@ -803,8 +923,8 @@ class EmployeeController extends Controller
             $hourlyRate = $employee->hourly_rate;
             
             // Calculate earnings
-            $regularHours = min($totalHours, 80); // Assuming 80 hours per pay period (40 hours/week * 2 weeks)
-            $overtimeHours = max(0, $totalHours - 80);
+            $regularHours = min($totalHours, $regularHoursThreshold); // Use dynamic regular hours threshold based on period length (40 hours/week * 2 weeks)
+            $overtimeHours = max(0, $totalHours - $regularHoursThreshold);
             $regularPay = $regularHours * $hourlyRate;
             $overtimePay = $overtimeHours * ($hourlyRate * 1.5); // 1.5x for overtime
             
@@ -818,7 +938,7 @@ class EmployeeController extends Controller
             $totalEarnings = $regularPay + $overtimePay + $statHolidayPay + $vacationPay;
             
             // Calculate YTD totals (simplified - would need to track this in database)
-            $ytdEarnings = $totalEarnings * 26; // Assuming 26 pay periods per year
+            $ytdEarnings = $totalEarnings * 24; // Assuming 24 pay periods per year for semi-monthly (12 months * 2 periods)
             $ytdCPP = 0;
             $ytdEI = 0;
             $ytdFederalTax = 0;
@@ -827,15 +947,15 @@ class EmployeeController extends Controller
             $cppRate = 0.0595; // 5.95%
             $cppBasicExemption = 3500;
             $cppMaxEarnings = 68500;
-            $cppContribution = min(max(0, $totalEarnings - ($cppBasicExemption / 26)), $cppMaxEarnings / 26) * $cppRate;
+            $cppContribution = min(max(0, $totalEarnings - ($cppBasicExemption / 24)), $cppMaxEarnings / 24) * $cppRate;
             
             $eiRate = 0.0166; // 1.66%
             $eiMaxInsurableEarnings = 63200;
-            $eiContribution = min($totalEarnings, $eiMaxInsurableEarnings / 26) * $eiRate;
+            $eiContribution = min($totalEarnings, $eiMaxInsurableEarnings / 24) * $eiRate;
             
             // Federal income tax (simplified calculation)
-            $federalTax = $this->calculateFederalTax($totalEarnings * 26); // Annualized for tax calculation
-            $federalTaxPerPeriod = $federalTax / 26;
+            $federalTax = $this->calculateFederalTax($totalEarnings * 24); // Annualized for tax calculation
+            $federalTaxPerPeriod = $federalTax / 24;
             
             $totalDeductions = $cppContribution + $eiContribution + $federalTaxPerPeriod;
             $netPay = $totalEarnings - $totalDeductions;
@@ -861,25 +981,25 @@ class EmployeeController extends Controller
                         'hours' => $regularHours,
                         'rate' => $hourlyRate,
                         'current_amount' => round($regularPay, 2),
-                        'ytd_amount' => round($regularPay * 26, 2)
+                        'ytd_amount' => round($regularPay * 24, 2)
                     ],
                     'stat_holiday_paid' => [
                         'hours' => $statHolidayHours,
                         'rate' => $hourlyRate,
                         'current_amount' => round($statHolidayPay, 2),
-                        'ytd_amount' => round($statHolidayPay * 26, 2)
+                        'ytd_amount' => round($statHolidayPay * 24, 2)
                     ],
                     'overtime' => [
                         'hours' => $overtimeHours,
                         'rate' => $hourlyRate * 1.5,
                         'current_amount' => round($overtimePay, 2),
-                        'ytd_amount' => round($overtimePay * 26, 2)
+                        'ytd_amount' => round($overtimePay * 24, 2)
                     ],
                     'vac_paid' => [
                         'hours' => 0,
                         'rate' => $hourlyRate,
                         'current_amount' => round($vacationPaid, 2),
-                        'ytd_amount' => round($vacationPaid * 26, 2)
+                        'ytd_amount' => round($vacationPaid * 24, 2)
                     ],
                     'total' => [
                         'hours' => $totalHours,
@@ -909,9 +1029,9 @@ class EmployeeController extends Controller
                 'net_pay' => round($netPay, 2),
                 'vacation_summary' => [
                     'vac_earned' => round($vacationEarned, 2),
-                    'vac_earned_ytd' => round($vacationEarned * 26, 2),
+                    'vac_earned_ytd' => round($vacationEarned * 24, 2),
                     'vac_paid' => round($vacationPaid, 2),
-                    'vac_paid_ytd' => round($vacationPaid * 26, 2)
+                    'vac_paid_ytd' => round($vacationPaid * 24, 2)
                 ]
             ];
         }
