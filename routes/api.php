@@ -263,3 +263,9 @@ Route::apiResource('expense-breakdowns', \App\Http\Controllers\ExpenseBreakdownC
 Route::post('/facebook/post-fuel-prices', [\App\Http\Controllers\Api\FacebookController::class, 'postFuelPrices'])->middleware('auth:sanctum');
 Route::get('/facebook/test-connection', [\App\Http\Controllers\Api\FacebookController::class, 'testConnection'])->middleware('auth:sanctum');
 
+// Document routes (Admin only)
+Route::apiResource('documents', \App\Http\Controllers\Api\DocumentController::class)->middleware(['auth:sanctum', 'can.manage.users']);
+
+// Staff-specific Document routes (View only - their own documents)
+Route::get('/staff/documents', [\App\Http\Controllers\Api\DocumentController::class, 'indexForStaff'])->middleware(['auth:sanctum']);
+Route::get('/staff/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class, 'showForStaff'])->middleware(['auth:sanctum']);
