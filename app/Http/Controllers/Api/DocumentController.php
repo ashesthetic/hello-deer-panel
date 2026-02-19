@@ -227,4 +227,48 @@ class DocumentController extends Controller
             'data' => $document
         ]);
     }
+
+    /**
+     * Download document file (Admin)
+     */
+    public function downloadFile(Request $request, string $id)
+    {
+        $document = Document::findOrFail($id);
+
+        if (!$document->document || !Storage::disk('public')->exists($document->document)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk('public')->download($document->document, $document->name);
+    }
+
+    /**
+     * Download document file (Staff - only their own documents)
+     */
+    public function downloadFileForStaff(Request $request, string $id)
+    {
+        $user = $request->user();
+        
+        // Get the employee record by email
+        $employee = Employee::where('email', $user->email)->first();
+        
+        if (!$employee) {
+            return response()->json(['message' => 'No employee record found'], 404);
+        }
+
+        // Find document and ensure it belongs to this employee
+        $document = Document::where('id', $id)
+            ->where('to', $employee->id)
+            ->first();
+        
+        if (!$document) {
+            return response()->json(['message' => 'Document not found or you do not have access to it'], 404);
+        }
+
+        if (!$document->document || !Storage::disk('public')->exists($document->document)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk('public')->download($document->document, $document->name);
+    }
 }

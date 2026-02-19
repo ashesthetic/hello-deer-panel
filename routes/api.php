@@ -264,8 +264,10 @@ Route::post('/facebook/post-fuel-prices', [\App\Http\Controllers\Api\FacebookCon
 Route::get('/facebook/test-connection', [\App\Http\Controllers\Api\FacebookController::class, 'testConnection'])->middleware('auth:sanctum');
 
 // Document routes (Admin only)
+Route::get('/documents/{document}/download', [\App\Http\Controllers\Api\DocumentController::class, 'downloadFile'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('documents', \App\Http\Controllers\Api\DocumentController::class)->middleware(['auth:sanctum', 'can.manage.users']);
 
 // Staff-specific Document routes (View only - their own documents)
 Route::get('/staff/documents', [\App\Http\Controllers\Api\DocumentController::class, 'indexForStaff'])->middleware(['auth:sanctum']);
 Route::get('/staff/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class, 'showForStaff'])->middleware(['auth:sanctum']);
+Route::get('/staff/documents/{document}/download', [\App\Http\Controllers\Api\DocumentController::class, 'downloadFileForStaff'])->middleware(['auth:sanctum']);
