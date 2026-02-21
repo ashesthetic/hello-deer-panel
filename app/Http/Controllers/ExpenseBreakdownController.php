@@ -21,9 +21,14 @@ class ExpenseBreakdownController extends Controller
         // Build query
         $query = ExpenseBreakdown::with(['expenseType']);
         
-        // Filter by expense type
+        // Filter by expense type(s)
         if ($request->has('expense_type_id')) {
             $query->where('expense_type_id', $request->expense_type_id);
+        } elseif ($request->has('expense_type_ids')) {
+            $expenseTypeIds = is_array($request->expense_type_ids) 
+                ? $request->expense_type_ids 
+                : explode(',', $request->expense_type_ids);
+            $query->whereIn('expense_type_id', $expenseTypeIds);
         }
         
         // Filter by date range
@@ -233,7 +238,10 @@ class ExpenseBreakdownController extends Controller
      */
     public function getExpenseTypes()
     {
-        $expenseTypes = ExpenseType::orderBy('expense_type')->get();
+        // Load expense types with nested children (recursive)
+        $expenseTypes = ExpenseType::with(['childExpenseTypes.childExpenseTypes.childExpenseTypes'])
+            ->orderBy('expense_type')
+            ->get();
         
         return response()->json([
             'data' => $expenseTypes
