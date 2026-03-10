@@ -21,7 +21,7 @@ class FetchGasBuddyPrices extends Command
     private const LNG = -113.7738163;
 
     private const GRAPHQL_URL   = 'https://www.gasbuddy.com/graphql';
-    private const ALERT_EMAIL   = 'thedeerhubcinc@gmail.com';
+    private const ALERT_EMAIL   = 'thedeerhubinc@gmail.com';
     private const ALERT_THRESHOLD          = 3; // cheaper stations threshold
     private const EXPENSIVE_THRESHOLD      = 2; // more expensive stations threshold
 
