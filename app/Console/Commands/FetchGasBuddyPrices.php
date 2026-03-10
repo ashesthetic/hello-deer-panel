@@ -36,7 +36,7 @@ class FetchGasBuddyPrices extends Command
             return self::FAILURE;
         }
 
-        $this->info('Fetched ' . count($stations) . ' stations. Upserting to DB...');
+        $this->info('Fetched ' . count($stations) . ' stations (total available: ' . ($this->lastCount ?? '?') . '). Upserting to DB...');
         $now = now();
 
         foreach ($stations as $stationData) {
@@ -110,13 +110,15 @@ class FetchGasBuddyPrices extends Command
 
         $ourPrice = (float) $ourLatest->regular_87;
 
+        // Only consider stations within 3 miles
         $cheaperStations = GasBuddyStation::whereNotNull('regular_gas')
             ->where('regular_gas', '<', $ourPrice)
+            ->whereRaw('CAST(distance AS DECIMAL(8,4)) <= 3')
             ->orderByRaw('CAST(distance AS DECIMAL(8,4)) ASC')
             ->get();
 
         $count = $cheaperStations->count();
-        $this->info("{$count} station(s) are cheaper than our price of {$ourPrice}¢/L.");
+        $this->info("{$count} station(s) within 3mi are cheaper than our price of {$ourPrice}¢/L.");
 
         if ($count >= self::ALERT_THRESHOLD) {
             $this->warn("Threshold reached ({$count} >= " . self::ALERT_THRESHOLD . "). Sending alert email...");
@@ -130,15 +132,17 @@ class FetchGasBuddyPrices extends Command
         }
     }
 
+    private int $lastCount = 0;
+
     private function fetchFromGasBuddy(): array
     {
         $token = '1.' . Str::random(16);
 
         $query = <<<'GQL'
-query LocationBySearchTerm($fuel: Int, $maxAge: Int, $lat: Float, $lng: Float) {
+query LocationBySearchTerm($fuel: Int, $maxAge: Int, $lat: Float, $lng: Float, $limit: Int) {
   locationBySearchTerm(lat: $lat, lng: $lng, priority: "locality") {
     displayName
-    stations(fuel: $fuel, maxAge: $maxAge, lat: $lat, lng: $lng, priority: "locality") {
+    stations(fuel: $fuel, maxAge: $maxAge, lat: $lat, lng: $lng, priority: "locality", limit: $limit) {
       count
       results {
         id
@@ -166,7 +170,7 @@ GQL;
             'User-Agent'               => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         ])->post(self::GRAPHQL_URL, [
             'operationName' => 'LocationBySearchTerm',
-            'variables'     => ['fuel' => 1, 'maxAge' => 0, 'lat' => self::LAT, 'lng' => self::LNG],
+            'variables'     => ['fuel' => 1, 'maxAge' => 0, 'lat' => self::LAT, 'lng' => self::LNG, 'limit' => 100],
             'query'         => $query,
         ]);
 
@@ -179,6 +183,7 @@ GQL;
             throw new \RuntimeException(json_encode($body['errors']));
         }
 
+        $this->lastCount = $body['data']['locationBySearchTerm']['stations']['count'] ?? 0;
         return $body['data']['locationBySearchTerm']['stations']['results'] ?? [];
     }
 }
