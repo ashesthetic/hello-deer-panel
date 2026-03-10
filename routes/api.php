@@ -259,6 +259,9 @@ Route::post('/expense-breakdowns/{id}/restore', [\App\Http\Controllers\ExpenseBr
 Route::delete('/expense-breakdowns/{id}/force-delete', [\App\Http\Controllers\ExpenseBreakdownController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('expense-breakdowns', \App\Http\Controllers\ExpenseBreakdownController::class)->middleware(['auth:sanctum', 'can.manage.users']);
 
+// GasBuddy routes
+Route::get('/gasbuddy/red-deer-prices', [\App\Http\Controllers\Api\GasBuddyController::class, 'getRedDeerPrices'])->middleware('auth:sanctum');
+
 // Facebook routes
 Route::post('/facebook/post-fuel-prices', [\App\Http\Controllers\Api\FacebookController::class, 'postFuelPrices'])->middleware('auth:sanctum');
 Route::get('/facebook/test-connection', [\App\Http\Controllers\Api\FacebookController::class, 'testConnection'])->middleware('auth:sanctum');
