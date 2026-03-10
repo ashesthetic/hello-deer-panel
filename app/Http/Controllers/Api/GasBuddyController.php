@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FuelPrice;
 use App\Models\GasBuddyStation;
 use Illuminate\Http\Request;
 
@@ -40,12 +41,15 @@ class GasBuddyController extends Controller
             'last_fetched_at' => $s->last_fetched_at,
         ]);
 
+        $ourPrice = (float) (FuelPrice::latest('created_at')->first()?->regular_87 ?? 0);
+
         return response()->json([
-            'success'      => true,
-            'display_name' => 'Red Deer, AB',
-            'count'        => $stations->count(),
-            'stations'     => $mapped,
+            'success'         => true,
+            'display_name'    => 'Red Deer, AB',
+            'count'           => $stations->count(),
+            'stations'        => $mapped,
             'last_fetched_at' => $stations->max('last_fetched_at'),
+            'our_price'       => $ourPrice ?: null,
         ]);
     }
 }

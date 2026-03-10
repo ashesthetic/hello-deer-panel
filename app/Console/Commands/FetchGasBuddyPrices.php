@@ -22,7 +22,8 @@ class FetchGasBuddyPrices extends Command
 
     private const GRAPHQL_URL   = 'https://www.gasbuddy.com/graphql';
     private const ALERT_EMAIL   = 'thedeerhubcinc@gmail.com';
-    private const ALERT_THRESHOLD = 3; // how many stations must be cheaper to trigger alert
+    private const ALERT_THRESHOLD          = 3; // cheaper stations threshold
+    private const EXPENSIVE_THRESHOLD      = 2; // more expensive stations threshold
 
     public function handle(): int
     {
@@ -110,25 +111,38 @@ class FetchGasBuddyPrices extends Command
 
         $ourPrice = (float) $ourLatest->regular_87;
 
-        // Only consider stations within 3 miles
-        $cheaperStations = GasBuddyStation::whereNotNull('regular_gas')
-            ->where('regular_gas', '<', $ourPrice)
+        $nearbyBase = GasBuddyStation::whereNotNull('regular_gas')
             ->whereRaw('CAST(distance AS DECIMAL(8,4)) <= 3')
-            ->orderByRaw('CAST(distance AS DECIMAL(8,4)) ASC')
+            ->orderByRaw('CAST(distance AS DECIMAL(8,4)) ASC');
+
+        // Cheaper stations (lower price than ours)
+        $cheaperStations = (clone $nearbyBase)
+            ->where('regular_gas', '<', $ourPrice)
             ->get();
 
-        $count = $cheaperStations->count();
-        $this->info("{$count} station(s) within 3mi are cheaper than our price of {$ourPrice}¢/L.");
+        // More expensive stations (higher price than ours)
+        $expensiveStations = (clone $nearbyBase)
+            ->where('regular_gas', '>', $ourPrice)
+            ->get();
 
-        if ($count >= self::ALERT_THRESHOLD) {
-            $this->warn("Threshold reached ({$count} >= " . self::ALERT_THRESHOLD . "). Sending alert email...");
+        $cheaperCount  = $cheaperStations->count();
+        $expensiveCount = $expensiveStations->count();
+
+        $this->info("{$cheaperCount} station(s) within 3mi are cheaper, {$expensiveCount} are more expensive than our price of {$ourPrice}¢/L.");
+
+        $shouldAlert = $cheaperCount >= self::ALERT_THRESHOLD || $expensiveCount >= self::EXPENSIVE_THRESHOLD;
+
+        if ($shouldAlert) {
+            $this->warn("Alert threshold reached (cheaper: {$cheaperCount}, expensive: {$expensiveCount}). Sending alert email...");
             Mail::to(self::ALERT_EMAIL)->send(new GasBuddyPriceAlert(
-                ourPrice:        $ourPrice,
-                cheaperStations: $cheaperStations->all(),
-                totalCheaper:    $count,
+                ourPrice:          $ourPrice,
+                cheaperStations:   $cheaperStations->all(),
+                totalCheaper:      $cheaperCount,
+                expensiveStations: $expensiveStations->all(),
+                totalExpensive:    $expensiveCount,
             ));
             $this->info('Alert email sent to ' . self::ALERT_EMAIL);
-            Log::info("GasBuddy price alert sent: {$count} stations cheaper than {$ourPrice}¢/L.");
+            Log::info("GasBuddy price alert sent: {$cheaperCount} cheaper, {$expensiveCount} more expensive within 3mi at {$ourPrice}¢/L.");
         }
     }
 

@@ -14,15 +14,20 @@ class GasBuddyPriceAlert extends Mailable
 
     public function __construct(
         public float $ourPrice,
-        public array $cheaperStations,  // array of GasBuddyStation models
-        public int   $totalCheaper,
+        public array $cheaperStations  = [],  // stations with lower price than ours
+        public int   $totalCheaper    = 0,
+        public array $expensiveStations = [], // stations with higher price than ours
+        public int   $totalExpensive   = 0,
     ) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(
-            subject: '⚠️ GasBuddy Alert: ' . $this->totalCheaper . ' stations are cheaper than us',
-        );
+        $parts = [];
+        if ($this->totalCheaper > 0)  $parts[] = $this->totalCheaper  . ' cheaper';
+        if ($this->totalExpensive > 0) $parts[] = $this->totalExpensive . ' more expensive';
+        $subject = '⛽ GasBuddy Alert: ' . implode(' · ', $parts) . ' nearby';
+
+        return new Envelope(subject: $subject);
     }
 
     public function content(): Content
