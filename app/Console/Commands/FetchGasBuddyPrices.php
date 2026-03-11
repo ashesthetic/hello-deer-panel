@@ -6,6 +6,7 @@ use App\Mail\GasBuddyPriceAlert;
 use App\Models\FuelPrice;
 use App\Models\GasBuddyStation;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -125,25 +126,51 @@ class FetchGasBuddyPrices extends Command
             ->where('regular_gas', '>', $ourPrice)
             ->get();
 
-        $cheaperCount  = $cheaperStations->count();
+        $cheaperCount   = $cheaperStations->count();
         $expensiveCount = $expensiveStations->count();
 
         $this->info("{$cheaperCount} station(s) within 3mi are cheaper, {$expensiveCount} are more expensive than our price of {$ourPrice}¢/L.");
 
-        $shouldAlert = $cheaperCount >= self::ALERT_THRESHOLD || $expensiveCount >= self::EXPENSIVE_THRESHOLD;
+        $thresholdMet = $cheaperCount >= self::ALERT_THRESHOLD || $expensiveCount >= self::EXPENSIVE_THRESHOLD;
 
-        if ($shouldAlert) {
-            $this->warn("Alert threshold reached (cheaper: {$cheaperCount}, expensive: {$expensiveCount}). Sending alert email...");
-            Mail::to(self::ALERT_EMAIL)->send(new GasBuddyPriceAlert(
-                ourPrice:          $ourPrice,
-                cheaperStations:   $cheaperStations->all(),
-                totalCheaper:      $cheaperCount,
-                expensiveStations: $expensiveStations->all(),
-                totalExpensive:    $expensiveCount,
-            ));
-            $this->info('Alert email sent to ' . self::ALERT_EMAIL);
-            Log::info("GasBuddy price alert sent: {$cheaperCount} cheaper, {$expensiveCount} more expensive within 3mi at {$ourPrice}¢/L.");
+        if (!$thresholdMet) {
+            // Thresholds not met — clear cached sets so a future spike re-triggers
+            Cache::forget('gasbuddy_last_cheaper_ids');
+            Cache::forget('gasbuddy_last_expensive_ids');
+            return;
         }
+
+        // Build sorted ID sets for comparison
+        $cheaperIds   = $cheaperStations->pluck('gasbuddy_station_id')->sort()->values()->toArray();
+        $expensiveIds = $expensiveStations->pluck('gasbuddy_station_id')->sort()->values()->toArray();
+
+        $lastCheaperIds   = Cache::get('gasbuddy_last_cheaper_ids',   []);
+        $lastExpensiveIds = Cache::get('gasbuddy_last_expensive_ids', []);
+
+        $cheaperChanged   = $cheaperIds   !== $lastCheaperIds;
+        $expensiveChanged = $expensiveIds !== $lastExpensiveIds;
+
+        if (!$cheaperChanged && !$expensiveChanged) {
+            $this->info('Same stations as last alert — skipping email.');
+            return;
+        }
+
+        $this->warn("Station set changed (cheaper changed: " . ($cheaperChanged ? 'yes' : 'no') . ", expensive changed: " . ($expensiveChanged ? 'yes' : 'no') . "). Sending alert email...");
+
+        Mail::to(self::ALERT_EMAIL)->send(new GasBuddyPriceAlert(
+            ourPrice:          $ourPrice,
+            cheaperStations:   $cheaperStations->all(),
+            totalCheaper:      $cheaperCount,
+            expensiveStations: $expensiveStations->all(),
+            totalExpensive:    $expensiveCount,
+        ));
+
+        // Save current sets so next run can compare
+        Cache::put('gasbuddy_last_cheaper_ids',   $cheaperIds,   now()->addHours(24));
+        Cache::put('gasbuddy_last_expensive_ids', $expensiveIds, now()->addHours(24));
+
+        $this->info('Alert email sent to ' . self::ALERT_EMAIL);
+        Log::info("GasBuddy price alert sent: {$cheaperCount} cheaper, {$expensiveCount} more expensive within 3mi at {$ourPrice}¢/L.");
     }
 
     private int $lastCount = 0;
