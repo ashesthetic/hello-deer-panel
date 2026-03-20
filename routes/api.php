@@ -57,6 +57,13 @@ Route::apiResource('daily-fuels', \App\Http\Controllers\Api\DailyFuelController:
 Route::post('daily-atm/{daily_atm}/resolve', [\App\Http\Controllers\Api\DailyAtmController::class, 'resolve'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('daily-atm', \App\Http\Controllers\Api\DailyAtmController::class)->middleware(['auth:sanctum', 'can.manage.users']);
 
+// Daily POS routes (Admin only)
+Route::get('daily-pos/with-trashed', [\App\Http\Controllers\Api\DailyPoController::class, 'withTrashed'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::post('daily-pos/{id}/restore', [\App\Http\Controllers\Api\DailyPoController::class, 'restore'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::delete('daily-pos/{id}/force-delete', [\App\Http\Controllers\Api\DailyPoController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::post('daily-pos/{daily_po}/resolve', [\App\Http\Controllers\Api\DailyPoController::class, 'resolve'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::apiResource('daily-pos', \App\Http\Controllers\Api\DailyPoController::class)->middleware(['auth:sanctum', 'can.manage.users']);
+
 // Fuel Volume routes
 Route::get('fuel-volumes/month/{year?}/{month?}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'getByMonth'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('fuel-volumes/daily-summary/{date?}', [\App\Http\Controllers\Api\FuelVolumeController::class, 'getDailySummary'])->middleware(['auth:sanctum', 'not.staff']);
