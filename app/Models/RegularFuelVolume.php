@@ -37,7 +37,6 @@ class RegularFuelVolume extends Model
     ];
 
     protected $casts = [
-        'datetime'        => 'datetime',
         'regular_volume'  => 'decimal:2',
         'regular_height'  => 'decimal:2',
         'regular_ullage'  => 'decimal:2',
