@@ -95,7 +95,15 @@ class RegularFuelVolumeController extends Controller
             'diesel_status'   => 'nullable|string|max:255',
         ]);
 
-        $record = RegularFuelVolume::create($request->all());
+        $data = $request->all();
+        if (!empty($data['datetime'])) {
+            // Normalize ISO 8601 format (e.g. 2026-03-25T01:22:58.194Z) to MySQL format
+            $dt = preg_replace('/\.\d+Z?$/', '', $data['datetime']); // strip milliseconds/.Z
+            $dt = preg_replace('/[+-]\d{2}:\d{2}$/', '', $dt);       // strip +HH:MM offset
+            $data['datetime'] = str_replace('T', ' ', trim($dt));
+        }
+
+        $record = RegularFuelVolume::create($data);
 
         return response()->json([
             'message' => 'Regular fuel volume created successfully',
@@ -147,7 +155,14 @@ class RegularFuelVolumeController extends Controller
             'diesel_status'   => 'nullable|string|max:255',
         ]);
 
-        $regularFuelVolume->update($request->all());
+        $data = $request->all();
+        if (!empty($data['datetime'])) {
+            $dt = preg_replace('/\.\d+Z?$/', '', $data['datetime']);
+            $dt = preg_replace('/[+-]\d{2}:\d{2}$/', '', $dt);
+            $data['datetime'] = str_replace('T', ' ', trim($dt));
+        }
+
+        $regularFuelVolume->update($data);
 
         return response()->json([
             'message' => 'Regular fuel volume updated successfully',
