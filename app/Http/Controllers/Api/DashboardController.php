@@ -738,9 +738,9 @@ class DashboardController extends Controller
      */
     private function getLastMonthData($user): array
     {
-        $lastMonthStart = Carbon::now()->subMonth()->startOfMonth();
-        $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
-        
+        $lastMonthStart = Carbon::now()->subMonthNoOverflow()->startOfMonth();
+        $lastMonthEnd = Carbon::now()->subMonthNoOverflow()->endOfMonth();
+
         $dailySales = DailySale::whereBetween('date', [$lastMonthStart, $lastMonthEnd])->get();
         $dailyFuels = DailyFuel::whereBetween('date', [$lastMonthStart, $lastMonthEnd])->get();
 
@@ -1044,8 +1044,8 @@ class DashboardController extends Controller
      */
     private function getLastMonthIncome($user): array
     {
-        $lastMonthStart = Carbon::now()->subMonth()->startOfMonth();
-        $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
+        $lastMonthStart = Carbon::now()->subMonthNoOverflow()->startOfMonth();
+        $lastMonthEnd = Carbon::now()->subMonthNoOverflow()->endOfMonth();
 
         $query = VendorInvoice::with(['vendor'])
             ->where('type', 'Income')
@@ -1094,8 +1094,8 @@ class DashboardController extends Controller
      */
     private function getLastMonthExpenses($user): array
     {
-        $lastMonthStart = Carbon::now()->subMonth()->startOfMonth();
-        $lastMonthEnd = Carbon::now()->subMonth()->endOfMonth();
+        $lastMonthStart = Carbon::now()->subMonthNoOverflow()->startOfMonth();
+        $lastMonthEnd = Carbon::now()->subMonthNoOverflow()->endOfMonth();
 
         $query = VendorInvoice::with(['vendor'])
             ->where('type', 'Expense')
