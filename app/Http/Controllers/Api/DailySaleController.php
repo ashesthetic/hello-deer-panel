@@ -539,6 +539,112 @@ class DailySaleController extends Controller
     }
 
     /**
+     * Get approximate settlement amounts based on last settled dates
+     */
+    public function getApproximateSettlement(Request $request)
+    {
+        $user = $request->user();
+        $today = now()->toDateString();
+
+        $lastDebitDate = \App\Models\Option::get('last_settled_debit_date');
+        $lastCreditDate = \App\Models\Option::get('last_settled_credit_date');
+
+        $debitFrom = $lastDebitDate
+            ? \Carbon\Carbon::parse($lastDebitDate)->addDay()->toDateString()
+            : null;
+        $creditFrom = $lastCreditDate
+            ? \Carbon\Carbon::parse($lastCreditDate)->addDay()->toDateString()
+            : null;
+
+        $visaFeePercentage = env('VISA_FEE_PERCENTAGE', 1.75);
+        $mastercardFeePercentage = env('MASTERCARD_FEE_PERCENTAGE', 1.75);
+        $amexFeePercentage = env('AMEX_FEE_PERCENTAGE', 2.22);
+        $interacFeePerTransaction = env('INTERAC_FEE_PER_TRANSACTION', 0.07);
+
+        $calculate = function ($fromDate, $toDate, $includeDebit, $includeCredit) use ($user, $visaFeePercentage, $mastercardFeePercentage, $amexFeePercentage, $interacFeePerTransaction) {
+            if (!$fromDate) {
+                return ['total_credit' => 0, 'total_debit' => 0, 'net' => 0];
+            }
+
+            $query = DailySale::query();
+            if ($user->isEditor()) {
+                $query->where('user_id', $user->id);
+            }
+            $sales = $query->whereBetween('date', [$fromDate, $toDate])->get();
+
+            $totalCredit = 0;
+            $totalDebit = 0;
+
+            foreach ($sales as $sale) {
+                $allPaymentTypes = [
+                    'POS VISA'        => ['amount' => $sale->pos_visa,          'fee_type' => 'visa',      'transaction_type' => 'credit'],
+                    'POS MASTERCARD'  => ['amount' => $sale->pos_mastercard,    'fee_type' => 'mastercard','transaction_type' => 'credit'],
+                    'POS AMEX'        => ['amount' => $sale->pos_amex,          'fee_type' => 'amex',      'transaction_type' => 'credit'],
+                    'POS COMMERCIAL'  => ['amount' => $sale->pos_commercial,    'fee_type' => null,        'transaction_type' => 'credit'],
+                    'POS UP CREDIT'   => ['amount' => $sale->pos_up_credit,     'fee_type' => null,        'transaction_type' => 'credit'],
+                    'POS DISCOVER'    => ['amount' => $sale->pos_discover,      'fee_type' => null,        'transaction_type' => 'credit'],
+                    'POS INTERAC'     => ['amount' => $sale->pos_interac_debit, 'fee_type' => 'interac',   'transaction_count' => $sale->pos_debit_transaction_count, 'transaction_type' => 'debit'],
+                    'AFD VISA'        => ['amount' => $sale->afd_visa,          'fee_type' => 'visa',      'transaction_type' => 'credit'],
+                    'AFD MASTERCARD'  => ['amount' => $sale->afd_mastercard,    'fee_type' => 'mastercard','transaction_type' => 'credit'],
+                    'AFD AMEX'        => ['amount' => $sale->afd_amex,          'fee_type' => 'amex',      'transaction_type' => 'credit'],
+                    'AFD COMMERCIAL'  => ['amount' => $sale->afd_commercial,    'fee_type' => null,        'transaction_type' => 'credit'],
+                    'AFD UP CREDIT'   => ['amount' => $sale->afd_up_credit,     'fee_type' => null,        'transaction_type' => 'credit'],
+                    'AFD DISCOVER'    => ['amount' => $sale->afd_discover,      'fee_type' => null,        'transaction_type' => 'credit'],
+                    'AFD INTERAC'     => ['amount' => $sale->afd_interac_debit, 'fee_type' => 'interac',   'transaction_count' => $sale->afd_debit_transaction_count, 'transaction_type' => 'debit'],
+                ];
+
+                foreach ($allPaymentTypes as $type => $data) {
+                    if (!($includeDebit && $data['transaction_type'] === 'debit') &&
+                        !($includeCredit && $data['transaction_type'] === 'credit')) {
+                        continue;
+                    }
+
+                    $amount = $data['amount'];
+                    $feeType = $data['fee_type'];
+                    $transactionCount = $data['transaction_count'] ?? 0;
+
+                    if ($amount > 0) {
+                        $totalCredit += $amount;
+
+                        if ($feeType === 'visa') {
+                            $totalDebit += ($amount * $visaFeePercentage) / 100;
+                        } elseif ($feeType === 'mastercard') {
+                            $totalDebit += ($amount * $mastercardFeePercentage) / 100;
+                        } elseif ($feeType === 'amex') {
+                            $totalDebit += ($amount * $amexFeePercentage) / 100;
+                        } elseif ($feeType === 'interac') {
+                            $totalDebit += $transactionCount * $interacFeePerTransaction;
+                        }
+                    }
+                }
+            }
+
+            return ['total_credit' => $totalCredit, 'total_debit' => $totalDebit, 'net' => $totalCredit - $totalDebit];
+        };
+
+        $debitResult = $calculate($debitFrom, $today, true, false);
+        $creditResult = $calculate($creditFrom, $today, false, true);
+
+        return response()->json([
+            'debit' => [
+                'from_date' => $debitFrom,
+                'to_date' => $today,
+                'total_credit' => $debitResult['total_credit'],
+                'total_debit' => $debitResult['total_debit'],
+                'net' => $debitResult['net'],
+            ],
+            'credit' => [
+                'from_date' => $creditFrom,
+                'to_date' => $today,
+                'total_credit' => $creditResult['total_credit'],
+                'total_debit' => $creditResult['total_debit'],
+                'net' => $creditResult['net'],
+            ],
+            'total_pending' => $debitResult['net'] + $creditResult['net'],
+        ]);
+    }
+
+    /**
      * Update last settled dates
      */
     public function updateSettlementDates(Request $request)
