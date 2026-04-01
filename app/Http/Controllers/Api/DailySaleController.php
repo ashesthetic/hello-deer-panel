@@ -622,8 +622,13 @@ class DailySaleController extends Controller
             return ['total_credit' => $totalCredit, 'total_debit' => $totalDebit, 'net' => $totalCredit - $totalDebit];
         };
 
+        $useInvoiceDate = filter_var($request->input('use_invoice_date', true), FILTER_VALIDATE_BOOLEAN);
+        $invoiceDate = \App\Models\Option::get('settlement_invoice_date');
+
+        $creditTo = ($useInvoiceDate && $invoiceDate) ? $invoiceDate : $today;
+
         $debitResult = $calculate($debitFrom, $today, true, false);
-        $creditResult = $calculate($creditFrom, $today, false, true);
+        $creditResult = $calculate($creditFrom, $creditTo, false, true);
 
         return response()->json([
             'debit' => [
@@ -635,12 +640,39 @@ class DailySaleController extends Controller
             ],
             'credit' => [
                 'from_date' => $creditFrom,
-                'to_date' => $today,
+                'to_date' => $creditTo,
                 'total_credit' => $creditResult['total_credit'],
                 'total_debit' => $creditResult['total_debit'],
                 'net' => $creditResult['net'],
             ],
+            'invoice_date' => $invoiceDate,
             'total_pending' => $debitResult['net'] + $creditResult['net'],
+        ]);
+    }
+
+    /**
+     * Get settlement invoice date
+     */
+    public function getInvoiceDate()
+    {
+        return response()->json([
+            'invoice_date' => \App\Models\Option::get('settlement_invoice_date'),
+        ]);
+    }
+
+    /**
+     * Update settlement invoice date
+     */
+    public function updateInvoiceDate(Request $request)
+    {
+        $validated = $request->validate([
+            'invoice_date' => 'required|date',
+        ]);
+
+        \App\Models\Option::set('settlement_invoice_date', $validated['invoice_date']);
+
+        return response()->json([
+            'invoice_date' => $validated['invoice_date'],
         ]);
     }
 

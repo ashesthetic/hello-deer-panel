@@ -48,6 +48,8 @@ Route::post('daily-sales/settlement-report', [\App\Http\Controllers\Api\DailySal
 Route::get('settlement-dates', [\App\Http\Controllers\Api\DailySaleController::class, 'getSettlementDates'])->middleware(['auth:sanctum', 'not.staff']);
 Route::put('settlement-dates', [\App\Http\Controllers\Api\DailySaleController::class, 'updateSettlementDates'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('daily-sales/approximate-settlement', [\App\Http\Controllers\Api\DailySaleController::class, 'getApproximateSettlement'])->middleware(['auth:sanctum', 'not.staff']);
+Route::get('settlement-invoice-date', [\App\Http\Controllers\Api\DailySaleController::class, 'getInvoiceDate'])->middleware(['auth:sanctum', 'not.staff']);
+Route::put('settlement-invoice-date', [\App\Http\Controllers\Api\DailySaleController::class, 'updateInvoiceDate'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('daily-sales', \App\Http\Controllers\Api\DailySaleController::class)->middleware(['auth:sanctum', 'not.staff']);
 
 // Daily Fuels routes
