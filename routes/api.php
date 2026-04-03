@@ -189,7 +189,11 @@ Route::apiResource('file-imports', \App\Http\Controllers\Api\FileImportControlle
 // SFT Processing routes (Admin only)
 Route::post('/sft-processor/process-sales-data', [\App\Http\Controllers\Api\SftProcessorController::class, 'processSalesData'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/sft-processor/available-dates', [\App\Http\Controllers\Api\SftProcessorController::class, 'getAvailableImportDates'])->middleware(['auth:sanctum', 'not.staff']);
-Route::get('/sft-processor/files-for-date', [\App\Http\Controllers\Api\SftProcessorController::class, 'getSftFilesForDate'])->middleware(['auth:sanctum', 'not.staff']); 
+Route::get('/sft-processor/files-for-date', [\App\Http\Controllers\Api\SftProcessorController::class, 'getSftFilesForDate'])->middleware(['auth:sanctum', 'not.staff']);
+
+// Shift Report routes (Admin only - reads directly from pos/data directory)
+Route::get('/shift-report/scan-files', [\App\Http\Controllers\Api\ShiftReportController::class, 'scanFiles'])->middleware(['auth:sanctum', 'not.staff']);
+Route::post('/shift-report/process', [\App\Http\Controllers\Api\ShiftReportController::class, 'processFiles'])->middleware(['auth:sanctum', 'not.staff']);
 
 Route::get('/profit/percentages', [\App\Http\Controllers\Api\ProfitController::class, 'getPercentages'])->middleware(['auth:sanctum', 'not.staff']);
 
