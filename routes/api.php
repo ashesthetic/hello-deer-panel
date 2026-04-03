@@ -76,6 +76,8 @@ Route::apiResource('fuel-volumes', \App\Http\Controllers\Api\FuelVolumeControlle
 Route::get('regular-fuel-volumes/month/{year?}/{month?}', [\App\Http\Controllers\Api\RegularFuelVolumeController::class, 'getByMonth'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('regular-fuel-volumes/date/{date?}', [\App\Http\Controllers\Api\RegularFuelVolumeController::class, 'getByDate'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('regular-fuel-volumes', \App\Http\Controllers\Api\RegularFuelVolumeController::class)->middleware(['auth:sanctum', 'not.staff']);
+// Staff read-only access to latest fuel volume (for Hello Deer Data page)
+Route::get('staff/regular-fuel-volumes', [\App\Http\Controllers\Api\RegularFuelVolumeController::class, 'index'])->middleware('auth:sanctum');
 
 // Fuel Price routes (Add and view only - no edit/delete)
 Route::get('/fuel-prices/latest', [\App\Http\Controllers\Api\FuelPriceController::class, 'latest'])->middleware(['auth:sanctum']);
