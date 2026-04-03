@@ -281,7 +281,9 @@ class WorkHourController extends Controller
      */
     public function myHours(Request $request)
     {
-        $employee = Employee::where('user_id', $request->user()->id)->first();
+        $user = $request->user();
+        $employee = Employee::where('user_id', $user->id)->first()
+            ?? Employee::whereRaw('LOWER(email) = ?', [strtolower($user->email)])->first();
 
         if (!$employee) {
             return response()->json([
