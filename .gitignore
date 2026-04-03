@@ -17,6 +17,12 @@ yarn-error.log
 /.vscode
 /wp-includes
 .DS_Store
+pos
+/pos
+pos.zip
+db-backup
+/db-backup
+
 
 # Laravel specific
 /bootstrap/cache/*.php
