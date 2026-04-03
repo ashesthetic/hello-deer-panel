@@ -118,6 +118,7 @@ Route::post('/employees/{employee}/resolve-hours', [\App\Http\Controllers\Api\Em
 Route::apiResource('employees', \App\Http\Controllers\Api\EmployeeController::class)->middleware(['auth:sanctum', 'not.staff']);
 
 // Work Hours routes
+Route::get('/staff/my-hours', [\App\Http\Controllers\Api\WorkHourController::class, 'myHours'])->middleware('auth:sanctum');
 Route::post('/work-hours/bulk', [\App\Http\Controllers\Api\WorkHourController::class, 'bulkStore'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('work-hours', \App\Http\Controllers\Api\WorkHourController::class)->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/work-hours/recent', [\App\Http\Controllers\Api\WorkHourController::class, 'recent'])->middleware(['auth:sanctum', 'not.staff']);

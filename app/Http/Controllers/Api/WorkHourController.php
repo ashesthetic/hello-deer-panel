@@ -275,4 +275,29 @@ class WorkHourController extends Controller
             ]
         ]);
     }
+
+    /**
+     * Return work hours for the currently authenticated staff member.
+     */
+    public function myHours(Request $request)
+    {
+        $employee = Employee::where('user_id', $request->user()->id)->first();
+
+        if (!$employee) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No employee record linked to your account.'
+            ], 404);
+        }
+
+        $workHours = WorkHour::where('employee_id', $employee->id)
+            ->orderBy('date', 'desc')
+            ->orderBy('start_time', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $workHours
+        ]);
+    }
 }
