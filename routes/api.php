@@ -220,6 +220,9 @@ Route::post('/loans/{id}/payment', [\App\Http\Controllers\LoanController::class,
 Route::delete('/loans/{id}/force-delete', [\App\Http\Controllers\LoanController::class, 'forceDelete'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::apiResource('loans', \App\Http\Controllers\LoanController::class)->middleware(['auth:sanctum', 'can.manage.users']);
 
+// Fuel Delivery routes (non-staff only; issued/resolved update is admin-gated inside controller)
+Route::apiResource('fuel-deliveries', \App\Http\Controllers\Api\FuelDeliveryController::class)->middleware(['auth:sanctum', 'not.staff']);
+
 // Staff Pay Stubs routes (Staff can view their own pay stubs)
 Route::get('/staff/pay-stubs', [\App\Http\Controllers\PayrollController::class, 'myPayStubs'])->middleware(['auth:sanctum']);
 Route::get('/staff/pay-stubs/{id}', [\App\Http\Controllers\PayrollController::class, 'myPayStub'])->middleware(['auth:sanctum']);
