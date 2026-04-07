@@ -150,6 +150,9 @@ class DailySaleController extends Controller
             'lottery' => 'required|numeric|min:0',
             'prepay' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
+            'total_transactions' => 'required|integer|min:0',
+            'fuel_transactions' => 'required|integer|min:0',
+            'store_transactions' => 'required|integer|min:0',
         ]);
 
         $data = $request->all();
@@ -268,6 +271,9 @@ class DailySaleController extends Controller
             'lottery' => 'required|numeric|min:0',
             'prepay' => 'required|numeric|min:0',
             'notes' => 'nullable|string',
+            'total_transactions' => 'required|integer|min:0',
+            'fuel_transactions' => 'required|integer|min:0',
+            'store_transactions' => 'required|integer|min:0',
         ]);
 
         $dailySale->update($request->all());

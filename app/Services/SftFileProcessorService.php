@@ -72,6 +72,10 @@ class SftFileProcessorService
             // Loyalty Discounts
             'journey_discount' => 0,
             'aeroplan_discount' => 0,
+            // Transaction Counts
+            'total_transactions' => 0,
+            'fuel_transactions' => 0,
+            'store_transactions' => 0,
             // Fuel Volume Data
             'diesel_volume' => 0,
             'diesel_total' => 0,
@@ -131,6 +135,10 @@ class SftFileProcessorService
                     // Loyalty Discounts
                     $aggregatedData['journey_discount'] += $fileData['data']['journey_discount'];
                     $aggregatedData['aeroplan_discount'] += $fileData['data']['aeroplan_discount'];
+                    // Transaction Counts
+                    $aggregatedData['total_transactions'] += $fileData['data']['total_transactions'];
+                    $aggregatedData['fuel_transactions'] += $fileData['data']['fuel_transactions'];
+                    $aggregatedData['store_transactions'] += $fileData['data']['store_transactions'];
                     // Fuel Volume Data
                     $aggregatedData['diesel_volume'] += $fileData['data']['diesel_volume'];
                     $aggregatedData['diesel_total'] += $fileData['data']['diesel_total'];
@@ -183,6 +191,10 @@ class SftFileProcessorService
                         // Loyalty Discounts
                         'journey_discount' => $fileData['data']['journey_discount'],
                         'aeroplan_discount' => $fileData['data']['aeroplan_discount'],
+                        // Transaction Counts
+                        'total_transactions' => $fileData['data']['total_transactions'],
+                        'fuel_transactions' => $fileData['data']['fuel_transactions'],
+                        'store_transactions' => $fileData['data']['store_transactions'],
                         // Fuel Volume Data
                         'diesel_volume' => $fileData['data']['diesel_volume'],
                         'diesel_total' => $fileData['data']['diesel_total'],
@@ -285,6 +297,10 @@ class SftFileProcessorService
                 // Loyalty Discounts
                 'journey_discount' => 0,
                 'aeroplan_discount' => 0,
+                // Transaction Counts
+                'total_transactions' => 0,
+                'fuel_transactions' => 0,
+                'store_transactions' => 0,
                 // Fuel Volume Data
                 'diesel_volume' => 0,
                 'diesel_total' => 0,
@@ -474,6 +490,14 @@ class SftFileProcessorService
                     }
                 }
                 
+                // Extract transaction counts (format: "Total transactions................... 82")
+                if (preg_match('/Total transactions[\s.]+(\d+)/i', $line, $matches)) {
+                    $salesData['total_transactions'] = (int) $matches[1];
+                }
+                if (preg_match('/Fuel only transactions[\s.]+(\d+)/i', $line, $matches)) {
+                    $salesData['fuel_transactions'] = (int) $matches[1];
+                }
+
                 // Extract loyalty discounts
                 if ($currentLoyaltySection && preg_match('/Total\s+loyalty\s+discounts\s+([\d,]+\.?\d*)/', $line, $matches)) {
                     $value = floatval(str_replace(',', '', $matches[1]));
@@ -534,6 +558,9 @@ class SftFileProcessorService
                     }
                 }
             }
+
+            // Compute store_transactions as total minus fuel
+            $salesData['store_transactions'] = $salesData['total_transactions'] - $salesData['fuel_transactions'];
 
             // SFT files can have zero sales data - this is valid, so we'll always return success
             // No validation needed for zero values as empty shifts are legitimate
@@ -609,6 +636,7 @@ class SftFileProcessorService
             'afd_interac_debit' => 0, 'afd_debit_transaction_count' => 0,
             'tobacco_25' => 0, 'tobacco_20' => 0, 'lottery_total' => 0, 'prepay_total' => 0,
             'journey_discount' => 0, 'aeroplan_discount' => 0,
+            'total_transactions' => 0, 'fuel_transactions' => 0, 'store_transactions' => 0,
             'diesel_volume' => 0, 'diesel_total' => 0,
             'regular_volume' => 0, 'regular_total' => 0,
             'plus_volume' => 0, 'plus_total' => 0,
@@ -657,6 +685,9 @@ class SftFileProcessorService
                     $aggregatedData['prepay_total'] += $fileData['data']['prepay_total'];
                     $aggregatedData['journey_discount'] += $fileData['data']['journey_discount'];
                     $aggregatedData['aeroplan_discount'] += $fileData['data']['aeroplan_discount'];
+                    $aggregatedData['total_transactions'] += $fileData['data']['total_transactions'];
+                    $aggregatedData['fuel_transactions'] += $fileData['data']['fuel_transactions'];
+                    $aggregatedData['store_transactions'] += $fileData['data']['store_transactions'];
                     $aggregatedData['diesel_volume'] += $fileData['data']['diesel_volume'];
                     $aggregatedData['diesel_total'] += $fileData['data']['diesel_total'];
                     $aggregatedData['regular_volume'] += $fileData['data']['regular_volume'];
@@ -703,6 +734,9 @@ class SftFileProcessorService
                         'prepay_total' => $fileData['data']['prepay_total'],
                         'journey_discount' => $fileData['data']['journey_discount'],
                         'aeroplan_discount' => $fileData['data']['aeroplan_discount'],
+                        'total_transactions' => $fileData['data']['total_transactions'],
+                        'fuel_transactions' => $fileData['data']['fuel_transactions'],
+                        'store_transactions' => $fileData['data']['store_transactions'],
                         'diesel_volume' => $fileData['data']['diesel_volume'],
                         'diesel_total' => $fileData['data']['diesel_total'],
                         'regular_volume' => $fileData['data']['regular_volume'],
@@ -772,6 +806,7 @@ class SftFileProcessorService
                 'afd_interac_debit' => 0, 'afd_debit_transaction_count' => 0,
                 'tobacco_25' => 0, 'tobacco_20' => 0, 'lottery_total' => 0, 'prepay_total' => 0,
                 'journey_discount' => 0, 'aeroplan_discount' => 0,
+                'total_transactions' => 0, 'fuel_transactions' => 0, 'store_transactions' => 0,
                 'diesel_volume' => 0, 'diesel_total' => 0,
                 'regular_volume' => 0, 'regular_total' => 0,
                 'plus_volume' => 0, 'plus_total' => 0,
@@ -926,6 +961,13 @@ class SftFileProcessorService
                     }
                 }
 
+                if (preg_match('/Total transactions[\s.]+(\d+)/i', $line, $matches)) {
+                    $salesData['total_transactions'] = (int) $matches[1];
+                }
+                if (preg_match('/Fuel only transactions[\s.]+(\d+)/i', $line, $matches)) {
+                    $salesData['fuel_transactions'] = (int) $matches[1];
+                }
+
                 $fuelDataProcessed = false;
                 if (preg_match('/^\s*(Diesel|Regular\(\d+\)|Sup\s*Plus\(\d+\)|Plus\(\d+\))\s+([\d,]+\.?\d*)\s+([\d,]+\.?\d*)\s*$/', $line, $matches)) {
                     $fuelType = trim($matches[1]);
@@ -966,6 +1008,8 @@ class SftFileProcessorService
                     }
                 }
             }
+
+            $salesData['store_transactions'] = $salesData['total_transactions'] - $salesData['fuel_transactions'];
 
             return ['success' => true, 'data' => $salesData];
 

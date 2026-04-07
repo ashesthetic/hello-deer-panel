@@ -51,6 +51,9 @@ class DailySale extends Model
         'prepay',
         'notes',
         'user_id',
+        'total_transactions',
+        'fuel_transactions',
+        'store_transactions',
     ];
 
     protected $casts = [
@@ -93,6 +96,9 @@ class DailySale extends Model
         'tobacco_20' => 'decimal:2',
         'lottery' => 'decimal:2',
         'prepay' => 'decimal:2',
+        'total_transactions' => 'integer',
+        'fuel_transactions' => 'integer',
+        'store_transactions' => 'integer',
     ];
 
     // Calculate daily total (Fuel Sales + Item Sales + Store Discount + GST + Penny Rounding)
