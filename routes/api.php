@@ -197,6 +197,7 @@ Route::get('/sft-processor/files-for-date', [\App\Http\Controllers\Api\SftProces
 // Shift Report routes (Admin only - reads directly from pos/data directory)
 Route::get('/shift-report/scan-files', [\App\Http\Controllers\Api\ShiftReportController::class, 'scanFiles'])->middleware(['auth:sanctum', 'not.staff']);
 Route::post('/shift-report/process', [\App\Http\Controllers\Api\ShiftReportController::class, 'processFiles'])->middleware(['auth:sanctum', 'not.staff']);
+Route::post('/shift-report/save-item-sales', [\App\Http\Controllers\Api\ShiftReportController::class, 'saveItemSales'])->middleware(['auth:sanctum', 'not.staff']);
 
 Route::get('/profit/percentages', [\App\Http\Controllers\Api\ProfitController::class, 'getPercentages'])->middleware(['auth:sanctum', 'not.staff']);
 
@@ -299,3 +300,23 @@ Route::apiResource('documents', \App\Http\Controllers\Api\DocumentController::cl
 Route::get('/staff/documents', [\App\Http\Controllers\Api\DocumentController::class, 'indexForStaff'])->middleware(['auth:sanctum']);
 Route::get('/staff/documents/{document}', [\App\Http\Controllers\Api\DocumentController::class, 'showForStaff'])->middleware(['auth:sanctum']);
 Route::get('/staff/documents/{document}/download', [\App\Http\Controllers\Api\DocumentController::class, 'downloadFileForStaff'])->middleware(['auth:sanctum']);
+
+// Departments — view only (Admin only)
+Route::apiResource('departments', \App\Http\Controllers\Api\DepartmentController::class)
+    ->only(['index', 'show'])
+    ->middleware(['auth:sanctum', 'can.manage.users']);
+
+// Products — view only (Admin only)
+Route::apiResource('products', \App\Http\Controllers\Api\ProductController::class)
+    ->only(['index', 'show'])
+    ->middleware(['auth:sanctum', 'can.manage.users']);
+
+// Item Sales — view only (Admin only)
+Route::apiResource('item-sales', \App\Http\Controllers\Api\ItemSaleController::class)
+    ->only(['index', 'show'])
+    ->middleware(['auth:sanctum', 'can.manage.users']);
+
+// Department Sales — view only (Admin only)
+Route::apiResource('department-sales', \App\Http\Controllers\Api\DepartmentSaleController::class)
+    ->only(['index', 'show'])
+    ->middleware(['auth:sanctum', 'can.manage.users']);

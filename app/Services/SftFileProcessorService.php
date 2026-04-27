@@ -2,7 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Department;
+use App\Models\DepartmentSale;
 use App\Models\FileImport;
+use App\Models\ItemSale;
+use App\Models\Product;
 use Illuminate\Support\Facades\Storage;
 
 class SftFileProcessorService
@@ -1040,6 +1044,204 @@ class SftFileProcessorService
             ->toArray();
 
         return $dates;
+    }
+
+    /**
+     * Parse the ITEM SALES section of an SFT file content, returning departments and items.
+     */
+    private function parseItemSalesFromContent(string $content): array
+    {
+        $lines = explode("\n", $content);
+
+        $departments = [];
+        $items = [];
+
+        $inItemSalesSection = false;
+        $currentDeptNumber = null;
+        $currentDeptName = null;
+
+        $exitSectionHeaders = [
+            'POS TOTALS', 'AFD CREDIT POS TOTALS', 'AFD DEBIT POS TOTALS',
+            'DEBIT TOTALS', 'PUMP DATA', 'KIOSK TOTALS',
+        ];
+
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+
+            // Detect ITEM SALES section header (all-caps centered)
+            if (preg_match('/^\s*ITEM SALES\s*$/', $trimmed)) {
+                $inItemSalesSection = true;
+                continue;
+            }
+
+            if (!$inItemSalesSection) {
+                continue;
+            }
+
+            // Exit on major section headers
+            if (in_array($trimmed, $exitSectionHeaders, true)) {
+                break;
+            }
+
+            // Skip separator lines and empty lines
+            if (empty($trimmed) || preg_match('/^-+$/', $trimmed)) {
+                continue;
+            }
+
+            // Department header: "Department: 000004          CONFECTION"
+            if (preg_match('/^Department:\s+(\d+)\s+(.+)$/', $trimmed, $matches)) {
+                $currentDeptNumber = (int) $matches[1];
+                $currentDeptName = trim($matches[2]);
+                continue;
+            }
+
+            if ($currentDeptNumber === null) {
+                continue;
+            }
+
+            // Grand Total with qty: "Grand Total   32     0 $  118.09"
+            if (preg_match('/Grand Total\s+(\d+)\s+\d+\s+\$\s*([\d.]+)/', $trimmed, $matches)) {
+                $qty = (float) $matches[1];
+                $price = (float) $matches[2];
+                if (!isset($departments[$currentDeptNumber])) {
+                    $departments[$currentDeptNumber] = ['name' => $currentDeptName, 'qty' => 0, 'price' => 0.0];
+                }
+                $departments[$currentDeptNumber]['qty'] += $qty;
+                $departments[$currentDeptNumber]['price'] += $price;
+                continue;
+            }
+
+            // Grand Total without qty: "Grand Total            $  127.99"
+            if (preg_match('/Grand Total\s+\$\s*([\d.]+)/', $trimmed, $matches)) {
+                $price = (float) $matches[1];
+                if (!isset($departments[$currentDeptNumber])) {
+                    $departments[$currentDeptNumber] = ['name' => $currentDeptName, 'qty' => 0, 'price' => 0.0];
+                }
+                $departments[$currentDeptNumber]['price'] += $price;
+                continue;
+            }
+
+            // Item line: "Cadbury Mr Big Ori     1     0 $    3.99"
+            if (preg_match('/^(.+?)\s{2,}(\d+)\s+\d+\s+\$\s*([\d.]+)/', $trimmed, $matches)) {
+                $itemName = trim($matches[1]);
+                $qty = (float) $matches[2];
+                $price = (float) $matches[3];
+                $items[] = [
+                    'department_number' => $currentDeptNumber,
+                    'name' => $itemName,
+                    'qty' => $qty,
+                    'price' => $price,
+                ];
+            }
+        }
+
+        return ['departments' => $departments, 'items' => $items];
+    }
+
+    /**
+     * Read all SFT files for a date, parse item/department sales, and persist to DB.
+     * Existing records for the date are wiped and re-imported (idempotent).
+     */
+    public function saveItemAndDepartmentSales(string $date): array
+    {
+        $files = $this->scanPosDataDirectory($date);
+
+        if (empty($files)) {
+            return [
+                'success' => false,
+                'message' => "No SFT files found for the date: {$date}",
+                'data' => null,
+            ];
+        }
+
+        // Aggregate across all SFT files for the day
+        $allDepartments = [];
+        $allItems = [];
+        $errors = [];
+
+        foreach ($files as $fileInfo) {
+            $content = @file_get_contents($fileInfo['path']);
+            if ($content === false) {
+                $errors[] = "Could not read file: {$fileInfo['name']}";
+                continue;
+            }
+
+            $parsed = $this->parseItemSalesFromContent($content);
+
+            // Merge departments (accumulate qty/price across shifts)
+            foreach ($parsed['departments'] as $deptNum => $deptData) {
+                if (!isset($allDepartments[$deptNum])) {
+                    $allDepartments[$deptNum] = $deptData;
+                } else {
+                    $allDepartments[$deptNum]['qty'] += $deptData['qty'];
+                    $allDepartments[$deptNum]['price'] += $deptData['price'];
+                }
+            }
+
+            foreach ($parsed['items'] as $item) {
+                $allItems[] = $item;
+            }
+        }
+
+        // Delete existing records for this date (delete+re-import)
+        ItemSale::where('date', $date)->forceDelete();
+        DepartmentSale::where('date', $date)->forceDelete();
+
+        $departmentsSaved = 0;
+        $itemsSaved = 0;
+        $itemsWithoutProduct = 0;
+
+        // Save departments
+        foreach ($allDepartments as $deptNum => $deptData) {
+            // Ensure the department exists in the departments table
+            $department = Department::withTrashed()->where('department_number', $deptNum)->first();
+            if (!$department) {
+                Department::create([
+                    'department_number' => $deptNum,
+                    'name' => $deptData['name'],
+                ]);
+            }
+
+            DepartmentSale::create([
+                'department_number' => $deptNum,
+                'qty' => $deptData['qty'],
+                'price' => $deptData['price'],
+                'date' => $date,
+            ]);
+            $departmentsSaved++;
+        }
+
+        // Save items
+        foreach ($allItems as $item) {
+            // Look up product by name LIKE prefix (SFT names are truncated from the right)
+            $product = Product::where('name', 'like', $item['name'] . '%')->first();
+            $itemNumber = $product?->item_number;
+
+            if (!$itemNumber) {
+                $itemsWithoutProduct++;
+            }
+
+            ItemSale::create([
+                'item_number' => $itemNumber,
+                'department_number' => $item['department_number'],
+                'name' => $item['name'],
+                'qty' => $item['qty'],
+                'price' => $item['price'],
+                'date' => $date,
+            ]);
+            $itemsSaved++;
+        }
+
+        return [
+            'success' => true,
+            'message' => "Saved {$departmentsSaved} department sales and {$itemsSaved} item sales for {$date}.",
+            'data' => [
+                'departments_saved' => $departmentsSaved,
+                'items_saved' => $itemsSaved,
+                'items_without_product' => $itemsWithoutProduct,
+                'errors' => $errors,
+            ],
+        ];
     }
 
     /**

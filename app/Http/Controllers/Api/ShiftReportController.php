@@ -95,4 +95,43 @@ class ShiftReportController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Parse SFT files for the given date and save item sales + department sales to the DB.
+     */
+    public function saveItemSales(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->isStaff()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Staff users do not have permission to save shift report data.'
+            ], 403);
+        }
+
+        $request->validate([
+            'date' => 'required|date'
+        ]);
+
+        try {
+            $formattedDate = \Carbon\Carbon::parse($request->input('date'))->format('Y-m-d');
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid date format.'
+            ], 400);
+        }
+
+        try {
+            $result = $this->sftProcessorService->saveItemAndDepartmentSales($formattedDate);
+
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error saving item sales: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

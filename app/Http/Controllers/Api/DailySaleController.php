@@ -739,15 +739,19 @@ class DailySaleController extends Controller
                     'tobacco_25' => 0,
                     'tobacco_20' => 0,
                     'lottery' => 0,
+                    'prepay' => 0,
+                    'store_sale' => 0,
                 ];
             }
-            
+
             // Accumulate values
             $monthlyData[$monthKey]['total_sales'] += $sale->reported_total;
             $monthlyData[$monthKey]['total_profits'] += $sale->approximate_profit;
             $monthlyData[$monthKey]['tobacco_25'] += $sale->tobacco_25;
             $monthlyData[$monthKey]['tobacco_20'] += $sale->tobacco_20;
             $monthlyData[$monthKey]['lottery'] += $sale->lottery;
+            $monthlyData[$monthKey]['prepay'] += $sale->prepay;
+            $monthlyData[$monthKey]['store_sale'] += $sale->store_sale;
         }
 
         // Get fuel data
@@ -776,6 +780,8 @@ class DailySaleController extends Controller
                     'tobacco_25' => 0,
                     'tobacco_20' => 0,
                     'lottery' => 0,
+                    'prepay' => 0,
+                    'store_sale' => 0,
                     'fuel_quantity' => 0,
                 ];
             }
