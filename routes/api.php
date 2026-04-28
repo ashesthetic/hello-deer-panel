@@ -90,6 +90,7 @@ Route::apiResource('vendors', \App\Http\Controllers\Api\VendorController::class)
 
 // Bank Account routes
 Route::get('/bank-accounts/summary', [\App\Http\Controllers\Api\BankAccountController::class, 'summary'])->middleware(['auth:sanctum', 'not.staff']);
+Route::post('/bank-accounts/{bankAccount}/set-default', [\App\Http\Controllers\Api\BankAccountController::class, 'setDefault'])->middleware(['auth:sanctum', 'not.staff']);
 Route::apiResource('bank-accounts', \App\Http\Controllers\Api\BankAccountController::class)->middleware(['auth:sanctum', 'not.staff']);
 
 // Safedrop Resolution routes

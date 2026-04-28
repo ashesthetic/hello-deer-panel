@@ -49,6 +49,11 @@ class SftFileProcessorService
             'cash_on_hand' => 0,
             'fuel_tax_gst' => 0,
             'payouts' => 0,
+            'pos_payout' => 0,
+            'lotto_payout' => 0,
+            'cashback_payout' => 0,
+            'uhaul_payout' => 0,
+            'vendor_payout' => 0,
             'loyalty_discounts' => 0,
             // POS Transaction Details
             'pos_visa' => 0,
@@ -112,6 +117,11 @@ class SftFileProcessorService
                     $aggregatedData['cash_on_hand'] += $fileData['data']['cash_on_hand'];
                     $aggregatedData['fuel_tax_gst'] += $fileData['data']['fuel_tax_gst'];
                     $aggregatedData['payouts'] += $fileData['data']['payouts'];
+                    $aggregatedData['pos_payout'] += $fileData['data']['pos_payout'];
+                    $aggregatedData['lotto_payout'] += $fileData['data']['lotto_payout'];
+                    $aggregatedData['cashback_payout'] += $fileData['data']['cashback_payout'];
+                    $aggregatedData['uhaul_payout'] += $fileData['data']['uhaul_payout'];
+                    $aggregatedData['vendor_payout'] += $fileData['data']['vendor_payout'];
                     $aggregatedData['loyalty_discounts'] += $fileData['data']['loyalty_discounts'];
                     // POS Transaction Details
                     $aggregatedData['pos_visa'] += $fileData['data']['pos_visa'];
@@ -168,6 +178,11 @@ class SftFileProcessorService
                         'cash_on_hand' => $fileData['data']['cash_on_hand'],
                         'fuel_tax_gst' => $fileData['data']['fuel_tax_gst'],
                         'payouts' => $fileData['data']['payouts'],
+                        'pos_payout' => $fileData['data']['pos_payout'],
+                        'lotto_payout' => $fileData['data']['lotto_payout'],
+                        'cashback_payout' => $fileData['data']['cashback_payout'],
+                        'uhaul_payout' => $fileData['data']['uhaul_payout'],
+                        'vendor_payout' => $fileData['data']['vendor_payout'],
                         'loyalty_discounts' => $fileData['data']['loyalty_discounts'],
                         // POS Transaction Details
                         'pos_visa' => $fileData['data']['pos_visa'],
@@ -274,6 +289,11 @@ class SftFileProcessorService
                 'cash_on_hand' => 0,
                 'fuel_tax_gst' => 0,
                 'payouts' => 0,
+                'pos_payout' => 0,
+                'lotto_payout' => 0,
+                'cashback_payout' => 0,
+                'uhaul_payout' => 0,
+                'vendor_payout' => 0,
                 'loyalty_discounts' => 0,
                 // POS Transaction Details
                 'pos_visa' => 0,
@@ -354,6 +374,9 @@ class SftFileProcessorService
                 } elseif (preg_match('/^\s*DEBIT TOTALS\s*$/', $line)) {
                     $currentSection = 'debit_totals';
                     continue;
+                } elseif (preg_match('/^\s*PAYOUTS\s*$/', $line)) {
+                    $currentSection = 'payouts';
+                    continue;
                 } elseif (preg_match('/^[A-Z].*[A-Z]$/', $line) && strlen($line) > 10) {
                     // New section header, reset current section
                     $currentSection = '';
@@ -410,11 +433,26 @@ class SftFileProcessorService
                     $salesData['fuel_tax_gst'] = (float) $matches[1];
                 }
                 
-                // Look for Payouts
-                if (preg_match('/Payouts\s+(\d+\.\d+)/', $line, $matches)) {
+                // Look for Payouts summary line
+                if (preg_match('/^Payouts\s+(\d+\.\d+)/', $line, $matches)) {
                     $salesData['payouts'] = (float) $matches[1];
                 }
-                
+
+                // Parse individual payout lines within PAYOUTS section
+                if ($currentSection === 'payouts') {
+                    if (preg_match('/POS Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['pos_payout'] = (float) $matches[1];
+                    } elseif (preg_match('/Lotto Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['lotto_payout'] = (float) $matches[1];
+                    } elseif (preg_match('/Cashback Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['cashback_payout'] = (float) $matches[1];
+                    } elseif (preg_match('/Uhaul Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['uhaul_payout'] = (float) $matches[1];
+                    } elseif (preg_match('/Vendor Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['vendor_payout'] = (float) $matches[1];
+                    }
+                }
+
                 // Look for Total loyalty discounts
                 if (preg_match('/Total loyalty discounts\s+(\d+\.\d+)/', $line, $matches)) {
                     $salesData['loyalty_discounts'] += (float) $matches[1];
@@ -631,6 +669,8 @@ class SftFileProcessorService
             'gst' => 0, 'penny_rounding' => 0, 'total_pos' => 0,
             'canadian_cash' => 0, 'safedrops_count' => 0, 'safedrops_amount' => 0,
             'cash_on_hand' => 0, 'fuel_tax_gst' => 0, 'payouts' => 0,
+            'pos_payout' => 0, 'lotto_payout' => 0, 'cashback_payout' => 0,
+            'uhaul_payout' => 0, 'vendor_payout' => 0,
             'loyalty_discounts' => 0,
             'pos_visa' => 0, 'pos_mastercard' => 0, 'pos_amex' => 0,
             'pos_commercial' => 0, 'pos_up_credit' => 0, 'pos_discover' => 0,
@@ -666,6 +706,11 @@ class SftFileProcessorService
                     $aggregatedData['cash_on_hand'] += $fileData['data']['cash_on_hand'];
                     $aggregatedData['fuel_tax_gst'] += $fileData['data']['fuel_tax_gst'];
                     $aggregatedData['payouts'] += $fileData['data']['payouts'];
+                    $aggregatedData['pos_payout'] += $fileData['data']['pos_payout'];
+                    $aggregatedData['lotto_payout'] += $fileData['data']['lotto_payout'];
+                    $aggregatedData['cashback_payout'] += $fileData['data']['cashback_payout'];
+                    $aggregatedData['uhaul_payout'] += $fileData['data']['uhaul_payout'];
+                    $aggregatedData['vendor_payout'] += $fileData['data']['vendor_payout'];
                     $aggregatedData['loyalty_discounts'] += $fileData['data']['loyalty_discounts'];
                     $aggregatedData['pos_visa'] += $fileData['data']['pos_visa'];
                     $aggregatedData['pos_mastercard'] += $fileData['data']['pos_mastercard'];
@@ -715,6 +760,11 @@ class SftFileProcessorService
                         'cash_on_hand' => $fileData['data']['cash_on_hand'],
                         'fuel_tax_gst' => $fileData['data']['fuel_tax_gst'],
                         'payouts' => $fileData['data']['payouts'],
+                        'pos_payout' => $fileData['data']['pos_payout'],
+                        'lotto_payout' => $fileData['data']['lotto_payout'],
+                        'cashback_payout' => $fileData['data']['cashback_payout'],
+                        'uhaul_payout' => $fileData['data']['uhaul_payout'],
+                        'vendor_payout' => $fileData['data']['vendor_payout'],
                         'loyalty_discounts' => $fileData['data']['loyalty_discounts'],
                         'pos_visa' => $fileData['data']['pos_visa'],
                         'pos_mastercard' => $fileData['data']['pos_mastercard'],
@@ -801,6 +851,8 @@ class SftFileProcessorService
                 'gst' => 0, 'penny_rounding' => 0, 'total_pos' => 0,
                 'canadian_cash' => 0, 'safedrops_count' => 0, 'safedrops_amount' => 0,
                 'cash_on_hand' => 0, 'fuel_tax_gst' => 0, 'payouts' => 0,
+                'pos_payout' => 0, 'lotto_payout' => 0, 'cashback_payout' => 0,
+                'uhaul_payout' => 0, 'vendor_payout' => 0,
                 'loyalty_discounts' => 0,
                 'pos_visa' => 0, 'pos_mastercard' => 0, 'pos_amex' => 0,
                 'pos_commercial' => 0, 'pos_up_credit' => 0, 'pos_discover' => 0,
@@ -850,6 +902,9 @@ class SftFileProcessorService
                 } elseif (preg_match('/^\s*DEBIT TOTALS\s*$/', $line)) {
                     $currentSection = 'debit_totals';
                     continue;
+                } elseif (preg_match('/^\s*PAYOUTS\s*$/', $line)) {
+                    $currentSection = 'payouts';
+                    continue;
                 } elseif (preg_match('/^[A-Z].*[A-Z]$/', $line) && strlen($line) > 10) {
                     $currentSection = '';
                 }
@@ -885,9 +940,25 @@ class SftFileProcessorService
                 if (preg_match('/Fuel tax - GST\s+\$\s*(\d+\.\d+)/', $line, $matches)) {
                     $salesData['fuel_tax_gst'] = (float) $matches[1];
                 }
-                if (preg_match('/Payouts\s+(\d+\.\d+)/', $line, $matches)) {
+                if (preg_match('/^Payouts\s+(\d+\.\d+)/', $line, $matches)) {
                     $salesData['payouts'] = (float) $matches[1];
                 }
+
+                // Parse individual payout lines within PAYOUTS section
+                if ($currentSection === 'payouts') {
+                    if (preg_match('/POS Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['pos_payout'] = (float) $matches[1];
+                    } elseif (preg_match('/Lotto Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['lotto_payout'] = (float) $matches[1];
+                    } elseif (preg_match('/Cashback Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['cashback_payout'] = (float) $matches[1];
+                    } elseif (preg_match('/Uhaul Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['uhaul_payout'] = (float) $matches[1];
+                    } elseif (preg_match('/Vendor Payout\s+([\d.]+)/', $line, $matches)) {
+                        $salesData['vendor_payout'] = (float) $matches[1];
+                    }
+                }
+
                 if (preg_match('/Total loyalty discounts\s+(\d+\.\d+)/', $line, $matches)) {
                     $salesData['loyalty_discounts'] += (float) $matches[1];
                 }

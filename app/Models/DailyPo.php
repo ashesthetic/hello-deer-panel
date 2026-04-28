@@ -15,12 +15,14 @@ class DailyPo extends Model
         'date',
         'amount',
         'resolved',
+        'resolved_amount',
         'notes',
     ];
 
     protected $casts = [
-        'date'     => 'date',
-        'amount'   => 'decimal:2',
-        'resolved' => 'boolean',
+        'date'            => 'date',
+        'amount'          => 'decimal:2',
+        'resolved_amount' => 'decimal:2',
+        'resolved'        => 'boolean',
     ];
 }

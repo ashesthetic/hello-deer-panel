@@ -202,8 +202,9 @@ class DailyPoController extends Controller
             $bankAccount->increment('balance', $request->amount);
 
             $dailyPo->update([
-                'resolved' => true,
-                'notes'    => $request->input('notes', $dailyPo->notes),
+                'resolved'        => true,
+                'resolved_amount' => $request->amount,
+                'notes'           => $request->input('notes', $dailyPo->notes),
             ]);
 
             DB::commit();

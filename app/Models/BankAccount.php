@@ -19,13 +19,15 @@ class BankAccount extends Model
         'currency',
         'balance',
         'is_active',
+        'is_default',
         'notes',
         'user_id',
     ];
 
     protected $casts = [
-        'balance' => 'decimal:2',
-        'is_active' => 'boolean',
+        'balance'    => 'decimal:2',
+        'is_active'  => 'boolean',
+        'is_default' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

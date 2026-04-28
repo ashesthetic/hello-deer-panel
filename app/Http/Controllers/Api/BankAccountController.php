@@ -186,6 +186,26 @@ class BankAccountController extends Controller
     }
 
     /**
+     * Set a bank account as the default
+     */
+    public function setDefault(Request $request, BankAccount $bankAccount)
+    {
+        $user = $request->user();
+
+        if (!$user->isAdmin()) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        BankAccount::where('is_default', true)->update(['is_default' => false]);
+        $bankAccount->update(['is_default' => true]);
+
+        return response()->json([
+            'message' => 'Default bank account updated successfully',
+            'data'    => $bankAccount->load('user'),
+        ]);
+    }
+
+    /**
      * Get summary statistics for bank accounts
      */
     public function summary(Request $request)

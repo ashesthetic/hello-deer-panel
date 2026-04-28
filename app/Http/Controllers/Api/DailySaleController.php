@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\DailyPo;
 use App\Models\DailySale;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -123,6 +124,11 @@ class DailySaleController extends Controller
             'coupon' => 'required|numeric|min:0',
             'delivery' => 'required|numeric|min:0',
             'lottery_payout' => 'required|numeric|min:0',
+            'payouts' => 'required|numeric|min:0',
+            'pos_payout' => 'required|numeric|min:0',
+            'cashback_payout' => 'required|numeric|min:0',
+            'uhaul_payout' => 'required|numeric|min:0',
+            'vendor_payout' => 'required|numeric|min:0',
             'reported_total' => 'required|numeric|min:0',
             'number_of_safedrops' => 'required|integer|min:0',
             'safedrops_amount' => 'required|numeric|min:0',
@@ -162,23 +168,36 @@ class DailySaleController extends Controller
         
         // Add calculated fields
         $dailySale->daily_total = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->store_discount + $dailySale->gst + $dailySale->penny_rounding;
-        $dailySale->breakdown_total = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery + $dailySale->lottery_payout;
-        $dailySale->total_pos_transactions = $dailySale->pos_visa + $dailySale->pos_mastercard + $dailySale->pos_amex + $dailySale->pos_commercial + 
+        $dailySale->breakdown_total = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery + $dailySale->payouts;
+        $dailySale->total_pos_transactions = $dailySale->pos_visa + $dailySale->pos_mastercard + $dailySale->pos_amex + $dailySale->pos_commercial +
                                             $dailySale->pos_up_credit + $dailySale->pos_discover + $dailySale->pos_interac_debit;
-        $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial + 
+        $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial +
                                             $dailySale->afd_up_credit + $dailySale->afd_discover + $dailySale->afd_interac_debit;
         $dailySale->total_loyalty_discounts = $dailySale->journey_discount + $dailySale->aeroplan_discount;
         $dailySale->total_low_margin_items = $dailySale->tobacco_25 + $dailySale->tobacco_20 + $dailySale->lottery + $dailySale->prepay;
         $dailySale->store_sale_calculated = $dailySale->getStoreSaleCalculatedAttribute();
         $dailySale->approximate_profit = $dailySale->getApproximateProfitAttribute();
-        
+
         // Legacy fields for backward compatibility
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
         $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
         $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
-        
+
         // Ensure reported_total is not null
         $dailySale->reported_total = $dailySale->reported_total ?? 0;
+
+        // Sync pos_payout to daily_pos (skip already-resolved records)
+        if ($dailySale->pos_payout > 0) {
+            $existing = DailyPo::where('date', $dailySale->date)->first();
+            if (!$existing) {
+                DailyPo::create([
+                    'date'   => $dailySale->date,
+                    'amount' => $dailySale->pos_payout,
+                ]);
+            } elseif (!$existing->resolved) {
+                $existing->update(['amount' => $dailySale->pos_payout]);
+            }
+        }
 
         return response()->json([
             'message' => 'Daily sale created successfully',
@@ -244,6 +263,11 @@ class DailySaleController extends Controller
             'coupon' => 'required|numeric|min:0',
             'delivery' => 'required|numeric|min:0',
             'lottery_payout' => 'required|numeric|min:0',
+            'payouts' => 'required|numeric|min:0',
+            'pos_payout' => 'required|numeric|min:0',
+            'cashback_payout' => 'required|numeric|min:0',
+            'uhaul_payout' => 'required|numeric|min:0',
+            'vendor_payout' => 'required|numeric|min:0',
             'reported_total' => 'required|numeric|min:0',
             'number_of_safedrops' => 'required|integer|min:0',
             'safedrops_amount' => 'required|numeric|min:0',
@@ -280,23 +304,36 @@ class DailySaleController extends Controller
         
         // Add calculated fields
         $dailySale->daily_total = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->store_discount + $dailySale->gst + $dailySale->penny_rounding;
-        $dailySale->breakdown_total = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery + $dailySale->lottery_payout;
-        $dailySale->total_pos_transactions = $dailySale->pos_visa + $dailySale->pos_mastercard + $dailySale->pos_amex + $dailySale->pos_commercial + 
+        $dailySale->breakdown_total = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery + $dailySale->payouts;
+        $dailySale->total_pos_transactions = $dailySale->pos_visa + $dailySale->pos_mastercard + $dailySale->pos_amex + $dailySale->pos_commercial +
                                             $dailySale->pos_up_credit + $dailySale->pos_discover + $dailySale->pos_interac_debit;
-        $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial + 
+        $dailySale->total_afd_transactions = $dailySale->afd_visa + $dailySale->afd_mastercard + $dailySale->afd_amex + $dailySale->afd_commercial +
                                             $dailySale->afd_up_credit + $dailySale->afd_discover + $dailySale->afd_interac_debit;
         $dailySale->total_loyalty_discounts = $dailySale->journey_discount + $dailySale->aeroplan_discount;
         $dailySale->total_low_margin_items = $dailySale->tobacco_25 + $dailySale->tobacco_20 + $dailySale->lottery + $dailySale->prepay;
         $dailySale->store_sale_calculated = $dailySale->getStoreSaleCalculatedAttribute();
         $dailySale->approximate_profit = $dailySale->getApproximateProfitAttribute();
-        
+
         // Legacy fields for backward compatibility
         $dailySale->total_product_sale = $dailySale->fuel_sale + $dailySale->store_sale + $dailySale->gst;
         $dailySale->total_counter_sale = $dailySale->card + $dailySale->cash + $dailySale->coupon + $dailySale->delivery;
         $dailySale->grand_total = $dailySale->total_product_sale + $dailySale->total_counter_sale;
-        
+
         // Ensure reported_total is not null
         $dailySale->reported_total = $dailySale->reported_total ?? 0;
+
+        // Sync pos_payout to daily_pos (skip already-resolved records)
+        if ($dailySale->pos_payout > 0) {
+            $existing = DailyPo::where('date', $dailySale->date)->first();
+            if (!$existing) {
+                DailyPo::create([
+                    'date'   => $dailySale->date,
+                    'amount' => $dailySale->pos_payout,
+                ]);
+            } elseif (!$existing->resolved) {
+                $existing->update(['amount' => $dailySale->pos_payout]);
+            }
+        }
 
         return response()->json([
             'message' => 'Daily sale updated successfully',

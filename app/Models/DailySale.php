@@ -22,6 +22,11 @@ class DailySale extends Model
         'coupon',
         'delivery',
         'lottery_payout',
+        'payouts',
+        'pos_payout',
+        'cashback_payout',
+        'uhaul_payout',
+        'vendor_payout',
         'breakdown_total',
         'reported_total',
         'number_of_safedrops',
@@ -69,6 +74,11 @@ class DailySale extends Model
         'coupon' => 'decimal:2',
         'delivery' => 'decimal:2',
         'lottery_payout' => 'decimal:2',
+        'payouts' => 'decimal:2',
+        'pos_payout' => 'decimal:2',
+        'cashback_payout' => 'decimal:2',
+        'uhaul_payout' => 'decimal:2',
+        'vendor_payout' => 'decimal:2',
         'breakdown_total' => 'decimal:2',
         'reported_total' => 'decimal:2',
         'number_of_safedrops' => 'integer',
@@ -107,10 +117,10 @@ class DailySale extends Model
         return $this->fuel_sale + $this->store_sale + $this->store_discount + $this->gst + $this->penny_rounding;
     }
 
-    // Calculate breakdown total (POS Sale + Cash + Loyalty Coupon + Delivery + Lottery Payout)
+    // Calculate breakdown total (POS Sale + Cash + Loyalty Coupon + Delivery + Payouts)
     public function getBreakdownTotalAttribute()
     {
-        return $this->card + $this->cash + $this->coupon + $this->delivery + $this->lottery_payout;
+        return $this->card + $this->cash + $this->coupon + $this->delivery + $this->payouts;
     }
 
     // Calculate total POS transactions
