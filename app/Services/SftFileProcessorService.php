@@ -1099,6 +1099,11 @@ class SftFileProcessorService
                 continue;
             }
 
+            // Skip summary lines that are not individual item entries
+            if (preg_match('/^(Sub Total|Deposit Total|GST)\b/i', $trimmed)) {
+                continue;
+            }
+
             // Grand Total with qty: "Grand Total   32     0 $  118.09"
             if (preg_match('/Grand Total\s+(\d+)\s+\d+\s+\$\s*([\d.]+)/', $trimmed, $matches)) {
                 $qty = (float) $matches[1];
@@ -1126,6 +1131,13 @@ class SftFileProcessorService
                 $itemName = trim($matches[1]);
                 $qty = (float) $matches[2];
                 $price = (float) $matches[3];
+
+                // Specials prefix: "2xMonsterEnergyDri" → name="MonsterEnergyDri", qty=2×line_qty
+                if (preg_match('/^(\d+)x(.+)$/', $itemName, $sm)) {
+                    $qty = (int) $sm[1] * $qty;
+                    $itemName = trim($sm[2]);
+                }
+
                 $items[] = [
                     'department_number' => $currentDeptNumber,
                     'name' => $itemName,
