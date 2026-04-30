@@ -167,10 +167,10 @@ class DailySale extends Model
         
         // Calculate store sale directly to avoid infinite loop
         $lowMarginItems = $this->tobacco_25 + $this->tobacco_20 + $this->lottery + $this->prepay;
-        $storeSaleCalculated = $this->store_sale - $lowMarginItems - $this->gst;
+        $storeSaleCalculated = $this->store_sale - $lowMarginItems - $this->gst - (float) $this->cashback_payout;
         $storeSaleProfit = ($storeSaleCalculated * config('profit.store_sale_percentage', 50)) / 100;
 
-        return $fuelProfit + $tobacco25Profit + $tobacco20Profit + $lotteryProfit + $prepayProfit + $storeSaleProfit - (float) $this->cashback_payout;
+        return $fuelProfit + $tobacco25Profit + $tobacco20Profit + $lotteryProfit + $prepayProfit + $storeSaleProfit;
     }
 
     // Legacy methods for backward compatibility
