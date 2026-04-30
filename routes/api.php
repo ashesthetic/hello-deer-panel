@@ -321,3 +321,12 @@ Route::apiResource('item-sales', \App\Http\Controllers\Api\ItemSaleController::c
 Route::apiResource('department-sales', \App\Http\Controllers\Api\DepartmentSaleController::class)
     ->only(['index', 'show'])
     ->middleware(['auth:sanctum', 'can.manage.users']);
+
+// NAXML Importer routes (Admin only)
+Route::post('/naxml/import', [\App\Http\Controllers\Api\NaxmlImporterController::class, 'import'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/naxml/imports', [\App\Http\Controllers\Api\NaxmlImporterController::class, 'imports'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/naxml/stats/top-products', [\App\Http\Controllers\Api\NaxmlImporterController::class, 'topProducts'])->middleware(['auth:sanctum', 'can.manage.users']);
+
+// POS Transactions — view only (Admin only)
+Route::get('/pos-transactions', [\App\Http\Controllers\Api\PosTransactionController::class, 'index'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/pos-transactions/{id}', [\App\Http\Controllers\Api\PosTransactionController::class, 'show'])->middleware(['auth:sanctum', 'can.manage.users']);
