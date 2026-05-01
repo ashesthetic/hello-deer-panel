@@ -11,5 +11,5 @@ Artisan::command('inspire', function () {
 // Fetch GasBuddy prices every 30 minutes and check for price alerts
 Schedule::command('gasbuddy:fetch')->everyThirtyMinutes();
 
-// Import NAXML POSJournal files for today every 10 minutes
-Schedule::command('naxml:import')->everyTenMinutes();
+// Scan flat receive folder, sweep companion files, and import new NAXML POSJournal files
+Schedule::command('pos:scan')->everyFiveMinutes();
