@@ -50,6 +50,9 @@ class NaxmlImporterController extends Controller
         $to = $request->input('to', Carbon::today()->toDateString());
         $limit = min((int) $request->input('limit', 20), 100);
         $order = $request->input('order', 'desc') === 'asc' ? 'asc' : 'desc';
+        $sortBy = $request->input('sort_by', 'qty') === 'revenue' ? 'total_revenue' : 'total_qty';
+        $departmentNumber = $request->input('department_number');
+        $excludeDepartments = array_values(array_filter(explode(',', $request->input('exclude_departments', ''))));
 
         if (!$from) {
             return response()->json(['error' => 'The from parameter is required.'], 422);
@@ -72,8 +75,10 @@ class NaxmlImporterController extends Controller
             ->where('pt.is_training', false)
             ->where('pt.is_suspended', false)
             ->whereNotNull('pti.item_number')
+            ->when($departmentNumber, fn($q) => $q->where('pti.department_number', $departmentNumber))
+            ->when($excludeDepartments, fn($q) => $q->whereNotIn('pti.department_number', $excludeDepartments))
             ->groupByRaw('pti.plu_code, pti.item_number, s.english_description, d.description')
-            ->orderBy('total_qty', $order)
+            ->orderBy($sortBy, $order)
             ->limit($limit)
             ->get();
 
@@ -83,6 +88,55 @@ class NaxmlImporterController extends Controller
             'order' => $order,
             'limit' => $limit,
             'data' => $results,
+        ]);
+    }
+
+    public function pbDepartments(): JsonResponse
+    {
+        $departments = \App\Models\PbDepartment::orderBy('description')->get(['department_number', 'description']);
+        return response()->json($departments);
+    }
+
+    public function productsByDepartment(Request $request): JsonResponse
+    {
+        $from = $request->input('from');
+        $to = $request->input('to', Carbon::today()->toDateString());
+        $excludeDepartments = array_values(array_filter(explode(',', $request->input('exclude_departments', ''))));
+
+        if (!$from) {
+            return response()->json(['error' => 'The from parameter is required.'], 422);
+        }
+
+        $results = PosTransactionItem::query()
+            ->selectRaw('
+                pti.department_number,
+                d.description AS department,
+                COUNT(DISTINCT pti.item_number) AS unique_products,
+                SUM(pti.quantity) AS total_qty,
+                SUM(pti.sales_amount) AS total_revenue
+            ')
+            ->from('pos_transaction_items AS pti')
+            ->join('pos_transactions AS pt', 'pt.id', '=', 'pti.pos_transaction_id')
+            ->leftJoin('pb_departments AS d', 'd.department_number', '=', 'pti.department_number')
+            ->whereBetween('pt.business_date', [$from, $to])
+            ->where('pt.is_training', false)
+            ->where('pt.is_suspended', false)
+            ->whereNotNull('pti.item_number')
+            ->when($excludeDepartments, fn($q) => $q->whereNotIn('pti.department_number', $excludeDepartments))
+            ->groupByRaw('pti.department_number, d.description')
+            ->orderByDesc('total_revenue')
+            ->get();
+
+        $totalRevenue = $results->sum('total_revenue');
+
+        return response()->json([
+            'from' => $from,
+            'to'   => $to,
+            'data' => $results->map(fn($r) => [
+                ...$r->toArray(),
+                'revenue_pct' => $totalRevenue > 0
+                    ? round($r->total_revenue / $totalRevenue * 100, 1) : 0,
+            ]),
         ]);
     }
 }

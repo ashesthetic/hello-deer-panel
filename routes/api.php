@@ -326,6 +326,8 @@ Route::apiResource('department-sales', \App\Http\Controllers\Api\DepartmentSaleC
 Route::post('/naxml/import', [\App\Http\Controllers\Api\NaxmlImporterController::class, 'import'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::get('/naxml/imports', [\App\Http\Controllers\Api\NaxmlImporterController::class, 'imports'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::get('/naxml/stats/top-products', [\App\Http\Controllers\Api\NaxmlImporterController::class, 'topProducts'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/naxml/stats/products-by-department', [\App\Http\Controllers\Api\NaxmlImporterController::class, 'productsByDepartment'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/naxml/pb-departments', [\App\Http\Controllers\Api\NaxmlImporterController::class, 'pbDepartments'])->middleware(['auth:sanctum', 'can.manage.users']);
 
 // POS Transactions — view only (Admin only)
 Route::get('/pos-transactions', [\App\Http\Controllers\Api\PosTransactionController::class, 'index'])->middleware(['auth:sanctum', 'can.manage.users']);
