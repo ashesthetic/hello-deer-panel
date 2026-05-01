@@ -19,10 +19,21 @@ class DailyPo extends Model
         'notes',
     ];
 
+    protected $appends = ['difference'];
+
     protected $casts = [
         'date'            => 'date',
         'amount'          => 'decimal:2',
         'resolved_amount' => 'decimal:2',
         'resolved'        => 'boolean',
     ];
+
+    public function getDifferenceAttribute(): ?float
+    {
+        if ($this->resolved_amount === null) {
+            return null;
+        }
+
+        return round((float) $this->amount - (float) $this->resolved_amount, 2);
+    }
 }
