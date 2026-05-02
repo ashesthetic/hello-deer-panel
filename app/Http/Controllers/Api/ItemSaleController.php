@@ -49,7 +49,7 @@ class ItemSaleController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'item_number' => 'required|string|max:255|exists:products,item_number',
+            'item_number' => 'required|string|max:255|exists:pb_skus,item_number',
             'name' => 'required|string|max:255',
             'qty' => 'required|numeric|min:0',
             'price' => 'required|numeric|min:0',
@@ -86,7 +86,7 @@ class ItemSaleController extends Controller
         $itemSale = ItemSale::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'item_number' => 'sometimes|required|string|max:255|exists:products,item_number',
+            'item_number' => 'sometimes|required|string|max:255|exists:pb_skus,item_number',
             'name' => 'sometimes|required|string|max:255',
             'qty' => 'sometimes|required|numeric|min:0',
             'price' => 'sometimes|required|numeric|min:0',

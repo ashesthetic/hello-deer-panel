@@ -38,7 +38,7 @@ class DepartmentSaleController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'department_number' => 'required|integer|exists:departments,department_number',
+            'department_number' => 'required|string|exists:pb_departments,department_number',
             'qty' => 'required|numeric|min:0',
             'price' => 'required|numeric|min:0',
             'date' => 'nullable|date',
@@ -74,7 +74,7 @@ class DepartmentSaleController extends Controller
         $sale = DepartmentSale::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'department_number' => 'sometimes|required|integer|exists:departments,department_number',
+            'department_number' => 'sometimes|required|string|exists:pb_departments,department_number',
             'qty' => 'sometimes|required|numeric|min:0',
             'price' => 'sometimes|required|numeric|min:0',
             'date' => 'sometimes|nullable|date',

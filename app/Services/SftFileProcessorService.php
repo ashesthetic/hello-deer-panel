@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\Department;
 use App\Models\DepartmentSale;
 use App\Models\FileImport;
 use App\Models\ItemSale;
-use App\Models\Product;
+use App\Models\PbDepartment;
+use App\Models\PbSku;
 use Illuminate\Support\Facades\Storage;
 
 class SftFileProcessorService
@@ -1373,12 +1373,12 @@ class SftFileProcessorService
 
         // Save departments
         foreach ($allDepartments as $deptNum => $deptData) {
-            // Ensure the department exists in the departments table
-            $department = Department::withTrashed()->where('department_number', $deptNum)->first();
+            // Ensure the department exists in pb_departments
+            $department = PbDepartment::find($deptNum);
             if (!$department) {
-                Department::create([
-                    'department_number' => $deptNum,
-                    'name' => $deptData['name'],
+                PbDepartment::create([
+                    'department_number' => (string) $deptNum,
+                    'description' => $deptData['name'],
                 ]);
             }
 
@@ -1393,9 +1393,9 @@ class SftFileProcessorService
 
         // Save items
         foreach ($allItems as $item) {
-            // Look up product by name LIKE prefix (SFT names are truncated from the right)
-            $product = Product::where('name', 'like', $item['name'] . '%')->first();
-            $itemNumber = $product?->item_number;
+            // Look up SKU by english_description LIKE prefix (SFT names are truncated from the right)
+            $sku = PbSku::where('english_description', 'like', $item['name'] . '%')->first();
+            $itemNumber = $sku?->item_number;
 
             if (!$itemNumber) {
                 $itemsWithoutProduct++;

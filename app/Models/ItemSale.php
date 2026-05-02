@@ -20,7 +20,7 @@ class ItemSale extends Model
     ];
 
     protected $casts = [
-        'department_number' => 'integer',
+        'department_number' => 'string',
         'qty' => 'decimal:2',
         'price' => 'decimal:2',
         'date' => 'date:Y-m-d',
@@ -28,11 +28,11 @@ class ItemSale extends Model
 
     public function product()
     {
-        return $this->belongsTo(Product::class, 'item_number', 'item_number');
+        return $this->belongsTo(PbSku::class, 'item_number', 'item_number');
     }
 
     public function department()
     {
-        return $this->belongsTo(Department::class, 'department_number', 'department_number');
+        return $this->belongsTo(PbDepartment::class, 'department_number', 'department_number');
     }
 }

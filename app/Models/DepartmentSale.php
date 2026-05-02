@@ -18,7 +18,7 @@ class DepartmentSale extends Model
     ];
 
     protected $casts = [
-        'department_number' => 'integer',
+        'department_number' => 'string',
         'qty' => 'decimal:2',
         'price' => 'decimal:2',
         'date' => 'date:Y-m-d',
@@ -26,6 +26,6 @@ class DepartmentSale extends Model
 
     public function department()
     {
-        return $this->belongsTo(Department::class, 'department_number', 'department_number');
+        return $this->belongsTo(PbDepartment::class, 'department_number', 'department_number');
     }
 }
