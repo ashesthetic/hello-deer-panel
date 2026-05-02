@@ -196,6 +196,7 @@ Route::get('/sft-processor/available-dates', [\App\Http\Controllers\Api\SftProce
 Route::get('/sft-processor/files-for-date', [\App\Http\Controllers\Api\SftProcessorController::class, 'getSftFilesForDate'])->middleware(['auth:sanctum', 'not.staff']);
 
 // Shift Report routes (Admin only - reads directly from pos/data directory)
+Route::get('/shift-report/list-files', [\App\Http\Controllers\Api\ShiftReportController::class, 'listFiles'])->middleware(['auth:sanctum', 'not.staff']);
 Route::get('/shift-report/scan-files', [\App\Http\Controllers\Api\ShiftReportController::class, 'scanFiles'])->middleware(['auth:sanctum', 'not.staff']);
 Route::post('/shift-report/process', [\App\Http\Controllers\Api\ShiftReportController::class, 'processFiles'])->middleware(['auth:sanctum', 'not.staff']);
 Route::post('/shift-report/save-item-sales', [\App\Http\Controllers\Api\ShiftReportController::class, 'saveItemSales'])->middleware(['auth:sanctum', 'not.staff']);

@@ -16,6 +16,35 @@ class ShiftReportController extends Controller
     }
 
     /**
+     * List all .sft files in SFT_RECEIVE_PATH with date extracted from file content.
+     */
+    public function listFiles(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->isStaff()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. Staff users do not have permission to access shift reports.'
+            ], 403);
+        }
+
+        try {
+            $files = $this->sftProcessorService->listAllSftFiles();
+
+            return response()->json([
+                'success' => true,
+                'data' => $files
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error listing files: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Scan the pos/data directory for .sft files on the given date
      */
     public function scanFiles(Request $request)
@@ -58,7 +87,7 @@ class ShiftReportController extends Controller
     }
 
     /**
-     * Process .sft files from the pos/data directory for the given date
+     * Process specific .sft files by filename.
      */
     public function processFiles(Request $request)
     {
@@ -72,20 +101,12 @@ class ShiftReportController extends Controller
         }
 
         $request->validate([
-            'date' => 'required|date'
+            'files' => 'required|array',
+            'files.*' => 'string'
         ]);
 
         try {
-            $formattedDate = \Carbon\Carbon::parse($request->input('date'))->format('Y-m-d');
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid date format.'
-            ], 400);
-        }
-
-        try {
-            $result = $this->sftProcessorService->processSftFilesFromPosData($formattedDate);
+            $result = $this->sftProcessorService->processSftFilesByNames($request->input('files'));
 
             return response()->json($result);
         } catch (\Exception $e) {
@@ -97,7 +118,7 @@ class ShiftReportController extends Controller
     }
 
     /**
-     * Parse SFT files for the given date and save item sales + department sales to the DB.
+     * Parse specific SFT files and save item sales + department sales to the DB for the given date.
      */
     public function saveItemSales(Request $request)
     {
@@ -111,7 +132,9 @@ class ShiftReportController extends Controller
         }
 
         $request->validate([
-            'date' => 'required|date'
+            'date' => 'required|date',
+            'files' => 'required|array',
+            'files.*' => 'string'
         ]);
 
         try {
@@ -124,7 +147,7 @@ class ShiftReportController extends Controller
         }
 
         try {
-            $result = $this->sftProcessorService->saveItemAndDepartmentSales($formattedDate);
+            $result = $this->sftProcessorService->saveItemAndDepartmentSales($formattedDate, $request->input('files'));
 
             return response()->json($result);
         } catch (\Exception $e) {

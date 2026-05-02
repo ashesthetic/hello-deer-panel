@@ -620,12 +620,13 @@ class SftFileProcessorService
     }
 
     /**
-     * Scan the pos/data/{date}/receive directory for .sft files
+     * Scan SFT_RECEIVE_PATH for .sft files matching the given date.
+     * Date is embedded in the filename as YYYYMMDD (e.g. "52221 202605010556 14650.sft").
      */
     public function scanPosDataDirectory(string $date): array
     {
-        $formattedDate = \Carbon\Carbon::parse($date)->format('Y-m-d');
-        $dir = base_path("pos/data/{$formattedDate}/receive");
+        $dateCompact = \Carbon\Carbon::parse($date)->format('Ymd');
+        $dir = $this->resolvePath(env('SFT_RECEIVE_PATH', 'pos/data/bulloch/sft'));
 
         if (!is_dir($dir)) {
             return [];
@@ -638,14 +639,69 @@ class SftFileProcessorService
 
         $result = [];
         foreach ($files as $filePath) {
-            $result[] = [
-                'name' => basename($filePath),
-                'size' => filesize($filePath),
-                'path' => $filePath,
-            ];
+            $name = basename($filePath);
+            if (strpos($name, $dateCompact) !== false) {
+                $result[] = [
+                    'name' => $name,
+                    'size' => filesize($filePath),
+                    'path' => $filePath,
+                ];
+            }
         }
 
         return $result;
+    }
+
+    private function resolvePath(string $path): string
+    {
+        if (str_starts_with($path, '/') || (strlen($path) > 1 && $path[1] === ':')) {
+            return rtrim($path, '/\\');
+        }
+        return rtrim(base_path($path), '/\\');
+    }
+
+    /**
+     * List all .sft files in SFT_RECEIVE_PATH with date extracted from file content.
+     */
+    public function listAllSftFiles(): array
+    {
+        $dir = $this->resolvePath(env('SFT_RECEIVE_PATH', 'pos/data/bulloch/sft'));
+        if (!is_dir($dir)) {
+            return [];
+        }
+
+        $files = glob("{$dir}/*.{sft,SFT}", GLOB_BRACE) ?: [];
+        $result = [];
+
+        foreach ($files as $filePath) {
+            $name = basename($filePath);
+            $date = $this->extractDateFromSftFile($filePath);
+            $result[] = [
+                'name' => $name,
+                'size' => filesize($filePath),
+                'date' => $date,
+            ];
+        }
+
+        usort($result, fn($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
+        return $result;
+    }
+
+    private function extractDateFromSftFile(string $filePath): ?string
+    {
+        $content = @file_get_contents($filePath, false, null, 0, 2000);
+        if (!$content) {
+            return null;
+        }
+
+        if (preg_match('/\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{2})\b/i', $content, $m)) {
+            try {
+                return \Carbon\Carbon::createFromFormat('j M y', "{$m[1]} {$m[2]} {$m[3]}")->format('Y-m-d');
+            } catch (\Exception $e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /**
@@ -664,6 +720,36 @@ class SftFileProcessorService
             ];
         }
 
+        return $this->aggregateSftFiles($files);
+    }
+
+    /**
+     * Process specific SFT files by filename, resolving them in SFT_RECEIVE_PATH.
+     */
+    public function processSftFilesByNames(array $fileNames): array
+    {
+        $dir = $this->resolvePath(env('SFT_RECEIVE_PATH', 'pos/data/bulloch/sft'));
+        $files = [];
+        foreach ($fileNames as $name) {
+            $path = $dir . '/' . $name;
+            if (file_exists($path)) {
+                $files[] = ['name' => $name, 'size' => filesize($path), 'path' => $path];
+            }
+        }
+
+        if (empty($files)) {
+            return [
+                'success' => false,
+                'message' => 'None of the specified SFT files were found.',
+                'data' => null
+            ];
+        }
+
+        return $this->aggregateSftFiles($files);
+    }
+
+    private function aggregateSftFiles(array $files): array
+    {
         $aggregatedData = [
             'total_sales' => 0, 'fuel_sales' => 0, 'item_sales' => 0,
             'gst' => 0, 'penny_rounding' => 0, 'total_pos' => 0,
@@ -1225,9 +1311,20 @@ class SftFileProcessorService
      * Read all SFT files for a date, parse item/department sales, and persist to DB.
      * Existing records for the date are wiped and re-imported (idempotent).
      */
-    public function saveItemAndDepartmentSales(string $date): array
+    public function saveItemAndDepartmentSales(string $date, array $fileNames = []): array
     {
-        $files = $this->scanPosDataDirectory($date);
+        if (!empty($fileNames)) {
+            $dir = $this->resolvePath(env('SFT_RECEIVE_PATH', 'pos/data/bulloch/sft'));
+            $files = [];
+            foreach ($fileNames as $name) {
+                $path = $dir . '/' . $name;
+                if (file_exists($path)) {
+                    $files[] = ['name' => $name, 'size' => filesize($path), 'path' => $path];
+                }
+            }
+        } else {
+            $files = $this->scanPosDataDirectory($date);
+        }
 
         if (empty($files)) {
             return [
@@ -1315,6 +1412,23 @@ class SftFileProcessorService
             $itemsSaved++;
         }
 
+        // Move processed files to POS_BACKUP_PATH/{date}/sft/
+        $backupDir = $this->resolvePath(env('POS_BACKUP_PATH', 'pos/data/bulloch/backup')) . "/{$date}/sft";
+        if (!is_dir($backupDir)) {
+            mkdir($backupDir, 0755, true);
+        }
+        $filesMoved = 0;
+        foreach ($files as $fileInfo) {
+            if (file_exists($fileInfo['path'])) {
+                $dest = "{$backupDir}/" . $fileInfo['name'];
+                if (rename($fileInfo['path'], $dest)) {
+                    $filesMoved++;
+                } else {
+                    $errors[] = "Could not move file to backup: {$fileInfo['name']}";
+                }
+            }
+        }
+
         return [
             'success' => true,
             'message' => "Saved {$departmentsSaved} department sales and {$itemsSaved} item sales for {$date}.",
@@ -1322,6 +1436,7 @@ class SftFileProcessorService
                 'departments_saved' => $departmentsSaved,
                 'items_saved' => $itemsSaved,
                 'items_without_product' => $itemsWithoutProduct,
+                'files_moved' => $filesMoved,
                 'errors' => $errors,
             ],
         ];
