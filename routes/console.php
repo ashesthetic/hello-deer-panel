@@ -12,4 +12,6 @@ Artisan::command('inspire', function () {
 Schedule::command('gasbuddy:fetch')->everyThirtyMinutes();
 
 // Scan flat receive folder, sweep companion files, and import new NAXML POSJournal files
-Schedule::command('pos:scan')->everyFiveMinutes();
+Schedule::command('pos:scan')
+    ->everyFiveMinutes()
+    ->appendOutputTo(storage_path('logs/pos-scan.log'));
