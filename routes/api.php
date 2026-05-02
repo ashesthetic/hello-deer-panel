@@ -332,4 +332,5 @@ Route::get('/naxml/pb-departments', [\App\Http\Controllers\Api\NaxmlImporterCont
 
 // POS Transactions — view only (Admin only)
 Route::get('/pos-transactions', [\App\Http\Controllers\Api\PosTransactionController::class, 'index'])->middleware(['auth:sanctum', 'can.manage.users']);
+Route::get('/pos-transactions/dates', [\App\Http\Controllers\Api\PosTransactionController::class, 'dates'])->middleware(['auth:sanctum', 'can.manage.users']);
 Route::get('/pos-transactions/{id}', [\App\Http\Controllers\Api\PosTransactionController::class, 'show'])->middleware(['auth:sanctum', 'can.manage.users']);

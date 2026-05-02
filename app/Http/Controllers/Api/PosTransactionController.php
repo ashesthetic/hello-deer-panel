@@ -30,12 +30,46 @@ class PosTransactionController extends Controller
             $query->where('cashier_id', $cashierId);
         }
 
+        if ($timeFrom = $request->input('time_from')) {
+            $query->whereTime('started_at', '>=', $timeFrom);
+        }
+
+        if ($timeTo = $request->input('time_to')) {
+            $query->whereTime('started_at', '<=', $timeTo);
+        }
+
+        if ($minTotal = $request->input('min_total')) {
+            $query->where('total_grand_amount', '>=', $minTotal);
+        }
+
+        if ($maxTotal = $request->input('max_total')) {
+            $query->where('total_grand_amount', '<=', $maxTotal);
+        }
+
         $transactions = $query
             ->orderBy('business_date', 'desc')
             ->orderBy('started_at', 'desc')
             ->paginate($request->input('per_page', 50));
 
         return response()->json($transactions);
+    }
+
+    public function dates(Request $request): JsonResponse
+    {
+        $query = PosTransaction::query()
+            ->selectRaw('business_date AS date, COUNT(*) AS transaction_count, SUM(total_grand_amount) AS total_grand_amount');
+
+        if ($from = $request->input('from')) {
+            $to = $request->input('to', now()->toDateString());
+            $query->whereBetween('business_date', [$from, $to]);
+        }
+
+        $dates = $query
+            ->groupBy('business_date')
+            ->orderBy('business_date', 'desc')
+            ->get();
+
+        return response()->json($dates);
     }
 
     public function show(int $id): JsonResponse
