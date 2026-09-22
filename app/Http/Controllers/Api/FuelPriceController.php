@@ -17,13 +17,29 @@ class FuelPriceController extends Controller
         $perPage = $request->input('per_page', 10);
         $sortBy = $request->input('sort_by', 'created_at');
         $sortDirection = $request->input('sort_direction', 'desc');
-        
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
         // Build query based on user role
         $query = FuelPrice::with('user');
-        
+
         // Apply user permissions - staff can only see their own entries
         $query->byUser($user);
-        
+
+        // Add date range filter if provided
+        if ($startDate) {
+            $query->whereDate('created_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('created_at', '<=', $endDate);
+        }
+
+        // Restrict sorting to known columns
+        $allowedSortFields = ['created_at', 'regular_87', 'midgrade_91', 'premium_94', 'diesel'];
+        if (!in_array($sortBy, $allowedSortFields)) {
+            $sortBy = 'created_at';
+        }
+
         // Apply sorting
         $query->orderBy($sortBy, $sortDirection);
         
