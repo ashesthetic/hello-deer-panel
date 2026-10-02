@@ -13,3 +13,6 @@ Schedule::command('gasbuddy:fetch')->everyThirtyMinutes();
 
 // Scan flat receive folder, sweep companion files, and import new NAXML POSJournal files
 Schedule::command('pos:scan')->everyFiveMinutes();
+
+// Poll the Pricebook Sync API for changes; stays well under its 120 req/min budget
+Schedule::command('pricebook:sync')->everyThirtySeconds()->withoutOverlapping();

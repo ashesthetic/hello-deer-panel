@@ -4,13 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PbSkuUpc extends Model
+class PbSkuLinkedSku extends Model
 {
     protected $fillable = [
         'source_id',
         'item_number',
-        'upc',
+        'linked_item_number',
+        'mandatory',
         'revision',
+    ];
+
+    protected $casts = [
+        'mandatory' => 'boolean',
     ];
 
     public function sku()

@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PbSkuUpc extends Model
+class PbSkuQuantityPricing extends Model
 {
     protected $fillable = [
         'source_id',
         'item_number',
-        'upc',
+        'quantity',
+        'price',
         'revision',
     ];
 

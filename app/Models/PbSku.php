@@ -42,6 +42,7 @@ class PbSku extends Model
         'delivery_channel_price',
         'tax_strategy_id_from_nacs',
         'owner',
+        'revision',
     ];
 
     protected $casts = [
@@ -64,9 +65,29 @@ class PbSku extends Model
         return $this->belongsTo(PbDepartment::class, 'department_number', 'department_number');
     }
 
+    public function priceGroup()
+    {
+        return $this->belongsTo(PbPriceGroup::class, 'price_group_number', 'price_group_number');
+    }
+
     public function upcs()
     {
         return $this->hasMany(PbSkuUpc::class, 'item_number', 'item_number');
+    }
+
+    public function quantityPricing()
+    {
+        return $this->hasMany(PbSkuQuantityPricing::class, 'item_number', 'item_number');
+    }
+
+    public function linkedSkus()
+    {
+        return $this->hasMany(PbSkuLinkedSku::class, 'item_number', 'item_number');
+    }
+
+    public function linkableSkus()
+    {
+        return $this->hasMany(PbSkuLinkableSku::class, 'item_number', 'item_number');
     }
 
     public function transactionItems()

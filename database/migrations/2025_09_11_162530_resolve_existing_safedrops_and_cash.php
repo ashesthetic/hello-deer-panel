@@ -23,15 +23,27 @@ return new class extends Migration
             return;
         }
         
+        // Nothing to resolve on a fresh database (e.g. a new environment or the
+        // test suite) — skip instead of requiring a bank account to already exist.
+        $dailySalesNeedingResolution = DailySale::where(function ($query) {
+            $query->where('safedrops_amount', '>', 0)
+                  ->orWhere('cash_on_hand', '!=', 0);
+        })->exists();
+
+        if (!$dailySalesNeedingResolution) {
+            echo "No historical daily sales need resolution. Skipping migration.\n";
+            return;
+        }
+
         // Use the first active bank account for historical resolutions
         $defaultBankAccount = BankAccount::where('is_active', true)->first();
-        
+
         if (!$defaultBankAccount) {
             echo "\n❌ ERROR: No active bank accounts found!\n";
             echo "Please run the setup script first:\n";
             echo "   php setup_live_server.php\n";
             echo "Or create bank accounts manually through the admin interface.\n\n";
-            
+
             echo "Available bank accounts:\n";
             $allBankAccounts = BankAccount::all(['id', 'account_name', 'is_active']);
             if ($allBankAccounts->count() > 0) {
@@ -42,7 +54,7 @@ return new class extends Migration
             } else {
                 echo "- No bank accounts found in database\n";
             }
-            
+
             throw new Exception('No active bank accounts found. Please create a bank account first.');
         }
 

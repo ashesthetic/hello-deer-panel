@@ -21,6 +21,7 @@ class PbDepartment extends Model
         'gift_card_department',
         'age_requirements',
         'default_item',
+        'revision',
     ];
 
     protected $casts = [
